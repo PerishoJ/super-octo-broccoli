@@ -145,7 +145,8 @@ public strictfp class RobotPlayer {
     static void runCarrier(RobotController rc) throws GameActionException {
         //mark hq location one time
         if (remembersHQlocation == 0) {
-
+            HQlocation = rc.getLocation();
+            /*
             //save the HQ location not the robot location
             for (int i = 0; i == 7; i++) {
                 MapLocation testHQlocation = rc.getLocation().add(directions[i]);
@@ -154,7 +155,7 @@ public strictfp class RobotPlayer {
 
                 }
             }
-
+            */
             remembersHQlocation = 1;
         }
         if (rc.getAnchor() != null) {
