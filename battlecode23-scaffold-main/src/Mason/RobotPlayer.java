@@ -251,11 +251,8 @@ public strictfp class RobotPlayer {
                 //rc.setIndicatorString("Moving full Carrier towards hqLocation: ");// + hqLocation.toString());
                 statusString += "Returning to HQ. ";
                 //rc.setIndicatorString(statusString);
-                while (!rc.getLocation().equals(hqLocation) && rc.isMovementReady()) {
-                    Direction dir = rc.getLocation().directionTo(hqLocation);
-                    if (rc.canMove(dir)) {
-                        rc.move(dir);
-                    }
+                if (!rc.getLocation().equals(hqLocation) && rc.isMovementReady()) {
+                    rc.move(  getDirectionToHQ(rc) );
                 }
             }
 
@@ -324,6 +321,19 @@ public strictfp class RobotPlayer {
         }
         statusString += "NoOP";
         rc.setIndicatorString(statusString);
+    }
+
+    private static Direction getDirectionToHQ(RobotController rc) throws GameActionException {
+        Direction dir = rc.getLocation().directionTo(hqLocation);
+        //find a direction we can actually move to
+        for(int dirs = 0  ; dirs <= directions.length ; dirs ++){
+            if(rc.canMove(dir)){
+                break;
+            } else {
+                dir = dir.rotateRight();
+            }
+        }
+        return dir;
     }
 
     /**
