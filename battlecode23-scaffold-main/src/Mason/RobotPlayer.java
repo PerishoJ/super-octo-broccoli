@@ -231,22 +231,27 @@ public strictfp class RobotPlayer {
                 //yes - deposit resources
                 rc.transferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA));
                 statusString += "Depositing Mana. ";
+                rc.setIndicatorString(statusString);
             }
             else if (rc.canTransferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM))) {
                 //yes - deposit resources
                 rc.transferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM));
                 statusString += "Depositing Ada. ";
+                rc.setIndicatorString(statusString);
             }
+            /*
             else if (rc.canTransferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR))) {
                 //yes - deposit resources
                 rc.transferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR));
                 statusString += "Depositing Elix. ";
             }
+            //*/
             else {
                 //no - try to move towards hqLocation
                 //rc.setIndicatorString("Moving full Carrier towards hqLocation: ");// + hqLocation.toString());
                 statusString += "Returning to HQ. ";
-                while (!rc.getLocation().equals(hqLocation)) {
+                //rc.setIndicatorString(statusString);
+                while (!rc.getLocation().equals(hqLocation) && rc.isMovementReady()) {
                     Direction dir = rc.getLocation().directionTo(hqLocation);
                     if (rc.canMove(dir)) {
                         rc.move(dir);
@@ -292,10 +297,10 @@ public strictfp class RobotPlayer {
 
             WellInfo[] wells = rc.senseNearbyWells();
             statusString += "wells:" + wells.length + ". ";
-            if (wells.length > 1) {
+            if (wells.length > 0) {
                 //rc.setIndicatorString("Well Detected");
                 statusString += "Well Detected. ";
-                WellInfo well_one = wells[1];
+                WellInfo well_one = wells[0];
                 wellLocation = well_one.getMapLocation();
                 Direction dir = me.directionTo(wellLocation);
                 if (rc.canMove(dir))
@@ -317,6 +322,7 @@ public strictfp class RobotPlayer {
             if (rc.canMove(dir))
                 rc.move(dir);
         }
+        statusString += "NoOP";
         rc.setIndicatorString(statusString);
     }
 
