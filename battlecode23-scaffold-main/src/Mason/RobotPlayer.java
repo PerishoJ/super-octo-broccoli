@@ -113,6 +113,35 @@ public strictfp class RobotPlayer {
     }
 
     /**
+     * Checks if we can build a Carrier and does so
+     */
+    static void buildCarrier(RobotController rc, MapLocation newLoc) throws GameActionException {
+        if (rc.canBuildRobot(RobotType.CARRIER, newLoc)) {
+            rc.buildRobot(RobotType.CARRIER, newLoc);
+        }
+    }
+
+    /**
+     * Checks if we can build a standard Anchor and does so
+     */
+    static void buildAnchorSTD(RobotController rc) throws GameActionException {
+        if (rc.canBuildAnchor(Anchor.STANDARD)) {
+            // If we can build an anchor do it!
+            rc.buildAnchor(Anchor.STANDARD);
+            rc.setIndicatorString("Building anchor! " + rc.getAnchor());
+        }
+    }
+
+    /**
+     * Checks if we can build a Launcher and does so
+     */
+    static void buildLauncher(RobotController rc, MapLocation newLoc) throws GameActionException {
+        if (rc.canBuildRobot(RobotType.LAUNCHER, newLoc)) {
+            rc.buildRobot(RobotType.LAUNCHER, newLoc);
+        }
+    }
+
+    /**
      * Run a single turn for a Headquarters.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
@@ -125,42 +154,28 @@ public strictfp class RobotPlayer {
         if (turnCount < 2) {
             // Let's try to build a carrier first.
             rc.setIndicatorString("Trying to build a carrier first");
-            if (rc.canBuildRobot(RobotType.CARRIER, newLoc)) {
-                rc.buildRobot(RobotType.CARRIER, newLoc);
-            }
+            buildCarrier(rc, newLoc);
         }
         if (turnCount == 3) {
-            if (rc.canBuildAnchor(Anchor.STANDARD)) {
-                // If we can build an anchor do it!
-                rc.buildAnchor(Anchor.STANDARD);
-                rc.setIndicatorString("Building anchor! " + rc.getAnchor());
-            }
+            // If we can build an anchor do it!
+            buildAnchorSTD(rc);
         }
         if (turnCount == 4) {
             // Let's try to build a carrier.
             rc.setIndicatorString("Trying to build a carrier first");
-            if (rc.canBuildRobot(RobotType.CARRIER, newLoc)) {
-                rc.buildRobot(RobotType.CARRIER, newLoc);
-            }
+            buildCarrier(rc, newLoc);
         }
         else{
-            if (rc.canBuildAnchor(Anchor.STANDARD)) {
-                // If we can build an anchor do it!
-                rc.buildAnchor(Anchor.STANDARD);
-                rc.setIndicatorString("Building anchor! " + rc.getAnchor());
-            }
+            // If we can build an anchor do it!
+            buildAnchorSTD(rc);
             if (rng.nextBoolean()) {
                 // Let's try to build a carrier.
                 rc.setIndicatorString("Trying to build a carrier");
-                if (rc.canBuildRobot(RobotType.CARRIER, newLoc)) {
-                    rc.buildRobot(RobotType.CARRIER, newLoc);
-                }
+                buildCarrier(rc, newLoc);
             } else {
                 // Let's try to build a launcher.
                 rc.setIndicatorString("Trying to build a launcher");
-                if (rc.canBuildRobot(RobotType.LAUNCHER, newLoc)) {
-                    rc.buildRobot(RobotType.LAUNCHER, newLoc);
-                }
+                buildLauncher(rc, newLoc);
             }
         }
 
@@ -181,90 +196,37 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Run a single turn for a Carrier.
-     * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
+     * Default anchor delivery logic
      */
-    static void runCarrier(RobotController rc) throws GameActionException {
-        String statusString = "";
-        boolean wasHqFound = !(hqLocation == null);
-        if (!wasHqFound) {
-            hqLocation = findHq(rc);
+    static void anchorDelivery(RobotController rc, StringBuilder statusString) throws GameActionException {
+        int[] islands = rc.senseNearbyIslands();
+        Set<MapLocation> islandLocs = new HashSet<>();
+        for (int id : islands) {
+            MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+            islandLocs.addAll(Arrays.asList(thisIslandLocs));
         }
-        if(wasHqFound) {
-            //rc.setIndicatorString("HQ is at: " + hqLocation.toString());
-            //rc.setIndicatorString("HQ known");
-            statusString += "HQ:" + hqLocation + ". ";
-        }
-        if (rc.getAnchor() != null) {
-            // If I have an anchor singularly focus on getting it to the first island I see
-            int[] islands = rc.senseNearbyIslands();
-            Set<MapLocation> islandLocs = new HashSet<>();
-            for (int id : islands) {
-                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
-                islandLocs.addAll(Arrays.asList(thisIslandLocs));
-            }
-            if (islandLocs.size() > 0) {
-                MapLocation islandLocation = islandLocs.iterator().next();
-                //rc.setIndicatorString("Moving my anchor towards " + islandLocation);
-                statusString += "Moving my anchor towards " + islandLocation + ". ";
-                while (!rc.getLocation().equals(islandLocation)) {
-                    Direction dir = rc.getLocation().directionTo(islandLocation);
-                    if (rc.canMove(dir)) {
-                        rc.move(dir);
-                    }
-                }
-                if (rc.canPlaceAnchor()) {
-                    //rc.setIndicatorString("Huzzah, placed anchor!");
-                    statusString += "Huzzah, placed anchor! ";
-                    rc.placeAnchor();
+        if (islandLocs.size() > 0) {
+            MapLocation islandLocation = islandLocs.iterator().next();
+            //rc.setIndicatorString("Moving my anchor towards " + islandLocation);
+            statusString.append("Moving my anchor towards " + islandLocation + ". ");
+            while (!rc.getLocation().equals(islandLocation)) {
+                Direction dir = rc.getLocation().directionTo(islandLocation);
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
                 }
             }
+            if (rc.canPlaceAnchor()) {
+                //rc.setIndicatorString("Huzzah, placed anchor!");
+                statusString.append("Huzzah, placed anchor! ");
+                rc.placeAnchor();
+            }
         }
-        //if it is full of either resource, go home.
-        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
-        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
+    }
 
-        if( isCarrierFull) {
-            //are we close enough to deposit resources?
-            statusString += "isFull. ";
-            if (rc.canTransferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA))) {
-                //yes - deposit resources
-                rc.transferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA));
-                statusString += "Depositing Mana. ";
-                rc.setIndicatorString(statusString);
-            }
-            else if (rc.canTransferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM))) {
-                //yes - deposit resources
-                rc.transferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM));
-                statusString += "Depositing Ada. ";
-                rc.setIndicatorString(statusString);
-            }
-            /*
-            else if (rc.canTransferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR))) {
-                //yes - deposit resources
-                rc.transferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR));
-                statusString += "Depositing Elix. ";
-            }
-            //*/
-            else {
-                //no - try to move towards hqLocation
-                //rc.setIndicatorString("Moving full Carrier towards hqLocation: ");// + hqLocation.toString());
-                statusString += "Returning to HQ. ";
-                //rc.setIndicatorString(statusString);
-                if (!rc.getLocation().equals(hqLocation) && rc.isMovementReady()) {
-                    rc.move(  getDirectionToHQ(rc) );
-                }
-            }
-
-
-            //Have we init our map?
-
-            //       if(gameMap==null){
-            //gameMap = new PathFinding(where do we get our grid?);
-        }
-
-
-        // Try to gather from squares around us.
+    /**
+     * Check all adjacent squares and gather if we can
+     */
+    static void blindGather(RobotController rc, StringBuilder statusString) throws GameActionException {
         MapLocation me = rc.getLocation();
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
@@ -273,11 +235,79 @@ public strictfp class RobotPlayer {
                     if (rng.nextBoolean()) {
                         rc.collectResource(wellLocation, -1);
                         //rc.setIndicatorString("Collecting, now have, AD:" + rc.getResourceAmount(ResourceType.ADAMANTIUM) + " MN: " + rc.getResourceAmount(ResourceType.MANA) + " EX: " + rc.getResourceAmount(ResourceType.ELIXIR));
-                        statusString += "Collecting. ";
+                        statusString.append("Collecting. ");
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Return to HQ and deposit all resources
+     */
+    static void depositToHQ(RobotController rc, StringBuilder statusString) throws GameActionException {
+        //are we close enough to deposit resources?
+        statusString.append("isFull. ");
+        if (rc.canTransferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA))) {
+            //yes - deposit resources
+            rc.transferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA));
+            statusString.append("Depositing Ma. ");
+        }
+        else if (rc.canTransferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM))) {
+            //yes - deposit resources
+            rc.transferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM));
+            statusString.append("Depositing Ad. ");
+        }
+        else if (rc.canTransferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR))) {
+            //yes - deposit resources
+            rc.transferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR));
+            statusString.append("Depositing Ex. ");
+        }
+        else {
+            //no - try to move towards hqLocation
+            //rc.setIndicatorString("Moving full Carrier towards hqLocation: ");// + hqLocation.toString());
+            statusString.append("Returning to HQ. ");
+            //check if we are close enough to deposit resources to hq and if not, try moving closer.
+            int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
+            if (distanceToHQ > 2 && rc.isMovementReady()) {
+                rc.move(  getDirectionToHQ(rc) );
+            }
+        }
+
+
+        //Have we init our map?
+
+        //       if(gameMap==null){
+        //gameMap = new PathFinding(where do we get our grid?);
+    }
+
+    /**
+     * Run a single turn for a Carrier.
+     * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
+     */
+    static void runCarrier(RobotController rc) throws GameActionException {
+        StringBuilder statusString = new StringBuilder();
+        boolean wasHqFound = !(hqLocation == null);
+        if (!wasHqFound) {
+            hqLocation = findHq(rc);
+        }
+        if(wasHqFound) {
+            statusString.append("HQ:" + hqLocation + ". ");
+        }
+        if (rc.getAnchor() != null) {
+            // If I have an anchor singularly focus on getting it to the first island I see
+            anchorDelivery(rc, statusString);
+        }
+        //if it is full of either resource, go home.
+        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
+        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
+        if(isCarrierFull) {
+            depositToHQ(rc, statusString);
+        }
+
+        // Try to gather from squares around us.
+        blindGather(rc, statusString);
+
         // Occasionally try out the carriers attack
         /*
         if (rng.nextInt(20) == 1) {
@@ -289,40 +319,39 @@ public strictfp class RobotPlayer {
             }
         }
         */
+
         // If we can see a well, move towards it
         if (wellLocation == null){
-
             WellInfo[] wells = rc.senseNearbyWells();
-            statusString += "wells:" + wells.length + ". ";
             if (wells.length > 0) {
                 //rc.setIndicatorString("Well Detected");
-                statusString += "Well Detected. ";
+                statusString.append("Well Detected. ");
                 WellInfo well_one = wells[0];
                 wellLocation = well_one.getMapLocation();
-                Direction dir = me.directionTo(wellLocation);
+                Direction dir = rc.getLocation().directionTo(wellLocation);
                 if (rc.canMove(dir))
                     rc.move(dir);
             }
             else {
                 // randomly move to find well
-                statusString += "RandomWalk. ";
-                Direction dir = directions[rng.nextInt(directions.length)];
-                if (rc.canMove(dir)) {
-                    rc.move(dir);
-                }
+                statusString.append("FindWell. ");
+                randomWalk(rc, statusString);
             }
         }
         else {
             // or if we know a well, go to it.
-            statusString += "Well walk. ";
-            Direction dir = me.directionTo(wellLocation);
+            statusString.append("Well walk. ");
+            Direction dir = rc.getLocation().directionTo(wellLocation);
             if (rc.canMove(dir))
                 rc.move(dir);
         }
-        statusString += "NoOP";
-        rc.setIndicatorString(statusString);
-    }
+        statusString.append("NoOP");
+        rc.setIndicatorString(statusString.toString());
+    }//end runCarrier
 
+    /**
+     * if the path is blocked, rotate right
+     */
     private static Direction getDirectionToHQ(RobotController rc) throws GameActionException {
         Direction dir = rc.getLocation().directionTo(hqLocation);
         //find a direction we can actually move to
@@ -337,29 +366,62 @@ public strictfp class RobotPlayer {
     }
 
     /**
+     * if the path is blocked, rotate right
+     */
+    private static Direction getDirectionToML(RobotController rc, MapLocation ml) throws GameActionException {
+        Direction dir = rc.getLocation().directionTo(ml);
+        //find a direction we can actually move to
+        for(int dirs = 0  ; dirs <= directions.length ; dirs ++){
+            if(rc.canMove(dir)){
+                break;
+            } else {
+                dir = dir.rotateRight();
+            }
+        }
+        return dir;
+    }
+
+    /**
+     * Default Launcher attack enemyrobot[0]
+     */
+    static void launcherAttack (RobotController rc, StringBuilder statusString) throws GameActionException {
+        int radius = rc.getType().actionRadiusSquared;
+        Team opponent = rc.getTeam().opponent();
+        RobotInfo[] enemies = rc.senseNearbyRobots(radius, opponent);
+        if (enemies.length > 0) {
+            MapLocation toAttack = enemies[0].location;
+            //MapLocation toAttack = rc.getLocation().add(Direction.EAST); //examplefuncsplayer original line
+            if (rc.canAttack(toAttack)) {
+                statusString.append("Attacking:" + enemies[0].location + ". ");
+                rc.attack(toAttack);
+            }
+        }
+    }
+
+    /**
+     * Move in random direction
+     */
+    static void randomWalk (RobotController rc, StringBuilder statusString) throws GameActionException {
+        Direction dir = directions[rng.nextInt(directions.length)];
+        if (rc.canMove(dir)) {
+            statusString.append("RandomWalk:" + dir + ". ");
+            rc.move(dir);
+        }
+    }
+
+    /**
      * Run a single turn for a Launcher.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runLauncher(RobotController rc) throws GameActionException {
+        StringBuilder statusString = new StringBuilder();
         // Try to attack someone
-        int radius = rc.getType().actionRadiusSquared;
-        Team opponent = rc.getTeam().opponent();
-        RobotInfo[] enemies = rc.senseNearbyRobots(radius, opponent);
-        if (enemies.length >= 0) {
-            // MapLocation toAttack = enemies[0].location;
-            MapLocation toAttack = rc.getLocation().add(Direction.EAST);
-
-            if (rc.canAttack(toAttack)) {
-                rc.setIndicatorString("Attacking");        
-                rc.attack(toAttack);
-            }
-        }
+        launcherAttack(rc, statusString);
 
         // Also try to move randomly.
-        Direction dir = directions[rng.nextInt(directions.length)];
-        if (rc.canMove(dir)) {
-            rc.move(dir);
-        }
+        randomWalk(rc, statusString);
+
+        rc.setIndicatorString(statusString.toString());
     }
 
 }
