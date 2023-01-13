@@ -229,6 +229,10 @@ public strictfp class RobotPlayer {
     static boolean gatherNearbyResources(RobotController rc, StringBuilder statusString) throws GameActionException {
         WellInfo[] wells = rc.senseNearbyWells();
         statusString.append( " Trying to mine from well location");
+        if(rc.getWeight()==GameConstants.CARRIER_CAPACITY){
+            statusString.append("This mofo can't hold no mo!");
+            return false;
+        }
         for(WellInfo well : wells){
             if(rc.canActLocation(well.getMapLocation())){
                 rc.collectResource(well.getMapLocation() , -1 );
