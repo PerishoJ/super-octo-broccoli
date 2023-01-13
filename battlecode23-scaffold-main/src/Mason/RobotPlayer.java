@@ -223,23 +223,20 @@ public strictfp class RobotPlayer {
         }
     }
 
-    /**
+    /** todo
      * Check all adjacent squares and gather if we can
      */
-    static void blindGather(RobotController rc, StringBuilder statusString) throws GameActionException {
-        MapLocation me = rc.getLocation();
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                MapLocation wellLocation = new MapLocation(me.x + dx, me.y + dy);
-                if (rc.canCollectResource(wellLocation, -1)) {
-                    if (rng.nextBoolean()) {
-                        rc.collectResource(wellLocation, -1);
-                        //rc.setIndicatorString("Collecting, now have, AD:" + rc.getResourceAmount(ResourceType.ADAMANTIUM) + " MN: " + rc.getResourceAmount(ResourceType.MANA) + " EX: " + rc.getResourceAmount(ResourceType.ELIXIR));
-                        statusString.append("Collecting. ");
-                    }
-                }
+    static boolean getResourceLocation(RobotController rc, StringBuilder statusString) throws GameActionException {
+        WellInfo[] wells = rc.senseNearbyWells();
+        statusString.append( " Trying to mine from well location");
+        for(WellInfo well : wells){
+            if(rc.canActLocation(well.getMapLocation())){
+                rc.collectResource(well.getMapLocation() , -1 );
+                statusString.append("OHHH YEAH BABY! That's the good stuff!!!/n");
+                statusString.append("Slurping up " + well.getResourceType()+"/n");
             }
         }
+        return false;//nothing around. Probably should do something else.
     }
 
     /**
@@ -306,7 +303,7 @@ public strictfp class RobotPlayer {
         }
 
         // Try to gather from squares around us.
-        blindGather(rc, statusString);
+        getResourceLocation(rc, statusString);
 
         // Occasionally try out the carriers attack
         /*
