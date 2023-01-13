@@ -160,6 +160,7 @@ public strictfp class RobotPlayer {
         }
         else{
             // If we don't have an anchor, build one!
+            rc.getNumAnchors(Anchor.STANDARD);
             if (rc.getAnchor() == null) {
                 buildAnchorSTD(rc);
             }
@@ -267,7 +268,7 @@ public strictfp class RobotPlayer {
             //check if we are close enough to deposit resources to hq and if not, try moving closer.
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             if (distanceToHQ > 2 && rc.isMovementReady()) {
-                rc.move(  getDirectionToHQ(rc) );
+                rc.move(  getDirectionToLocation(rc , hqLocation) );
             }
         }
 
@@ -349,8 +350,8 @@ public strictfp class RobotPlayer {
     /**
      * if the path is blocked, rotate right
      */
-    private static Direction getDirectionToHQ(RobotController rc) throws GameActionException {
-        Direction dir = rc.getLocation().directionTo(hqLocation);
+    private static Direction getDirectionToLocation(RobotController rc , MapLocation location ) throws GameActionException {
+        Direction dir = rc.getLocation().directionTo(location);
         //find a direction we can actually move to
         for(int dirs = 0  ; dirs <= directions.length ; dirs ++){
             if(rc.canMove(dir)){
