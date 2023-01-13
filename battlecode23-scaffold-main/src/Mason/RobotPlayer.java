@@ -234,7 +234,7 @@ public strictfp class RobotPlayer {
             return false;
         }
         for(WellInfo well : wells){
-            if(rc.canActLocation(well.getMapLocation())){
+            if(rc.canCollectResource(well.getMapLocation(),-1)){
                 rc.collectResource(well.getMapLocation() , -1 );
                 statusString.append("OHHH YEAH BABY! That's the good stuff!!!/n");
                 statusString.append("Slurping up " + well.getResourceType()+"/n");
@@ -308,7 +308,7 @@ public strictfp class RobotPlayer {
         }
 
         // Try to gather from squares around us.
-        gatherNearbyResources(rc, statusString);
+        boolean didGather = gatherNearbyResources(rc, statusString);
 
         // Occasionally try out the carriers attack
         /*
