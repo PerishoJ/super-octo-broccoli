@@ -226,7 +226,7 @@ public strictfp class RobotPlayer {
     /** todo
      * Check all adjacent squares and gather if we can
      */
-    static boolean getResourceLocation(RobotController rc, StringBuilder statusString) throws GameActionException {
+    static boolean gatherNearbyResources(RobotController rc, StringBuilder statusString) throws GameActionException {
         WellInfo[] wells = rc.senseNearbyWells();
         statusString.append( " Trying to mine from well location");
         for(WellInfo well : wells){
@@ -234,6 +234,7 @@ public strictfp class RobotPlayer {
                 rc.collectResource(well.getMapLocation() , -1 );
                 statusString.append("OHHH YEAH BABY! That's the good stuff!!!/n");
                 statusString.append("Slurping up " + well.getResourceType()+"/n");
+                return true;
             }
         }
         return false;//nothing around. Probably should do something else.
@@ -303,7 +304,7 @@ public strictfp class RobotPlayer {
         }
 
         // Try to gather from squares around us.
-        getResourceLocation(rc, statusString);
+        gatherNearbyResources(rc, statusString);
 
         // Occasionally try out the carriers attack
         /*
