@@ -149,25 +149,20 @@ public strictfp class RobotPlayer {
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
         MapLocation newLoc = rc.getLocation().add(dir);
-
-
-        if (turnCount < 2) {
+        if (turnCount == 1) {
+            // Build an anchor first thing.
+            buildAnchorSTD(rc);
+        }
+        if (turnCount < 4) {
             // Let's try to build a carrier first.
             rc.setIndicatorString("Trying to build a carrier first");
             buildCarrier(rc, newLoc);
         }
-        if (turnCount == 3) {
-            // If we can build an anchor do it!
-            buildAnchorSTD(rc);
-        }
-        if (turnCount == 4) {
-            // Let's try to build a carrier.
-            rc.setIndicatorString("Trying to build a carrier first");
-            buildCarrier(rc, newLoc);
-        }
         else{
-            // If we can build an anchor do it!
-            buildAnchorSTD(rc);
+            // If we don't have an anchor, build one!
+            if (rc.getAnchor() == null) {
+                buildAnchorSTD(rc);
+            }
             if (rng.nextBoolean()) {
                 // Let's try to build a carrier.
                 rc.setIndicatorString("Trying to build a carrier");
