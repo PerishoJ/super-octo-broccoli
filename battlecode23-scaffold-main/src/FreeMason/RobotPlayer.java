@@ -33,8 +33,14 @@ public strictfp class RobotPlayer {
 
     //remember well location
     static MapLocation wellLocation = null;
+    static List<MapLocation> wellLocations = new ArrayList<MapLocation>();
+    //remember island location
+    static MapLocation islandLocation = null;
+    static List<MapLocation> knownIslandLocations = new ArrayList<MapLocation>();
+
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
+
     //remember last direction traversed
     static Direction lastDir = null;
 
@@ -123,11 +129,12 @@ public strictfp class RobotPlayer {
      */
     static void DecalareHQLocationTurn0 (RobotController rc){
         MapLocation me = rc.getLocation();
-        //writeCommand(0, me.x, me.y, 0, 0);
+        //scoutingRadio.sendScoutRequest( new MapLocation(me.x, me.y), -1);
     }
 
     /**
-     *write hq vector for a robot id
+     *write enemy hq vector for a robot id
+     * look at where the other hq's are... guess at symetry line and send a scout
      */
 
 
@@ -209,6 +216,132 @@ public strictfp class RobotPlayer {
 
     }
 
+    /**
+     * new carrier logic
+     * if fist turn alive: find hq
+     * if standing next to base, deposit
+     *  pick up any anchors if we know of any islands
+     * always search for islands and wells
+     * if island
+     *  if it is unclaimed or enemy return to hq to talk about it, request anchor for island if unclaimed
+     * look for command from communication array
+     *  execute command, might just be adding island or well to known list.
+     * if well and island
+     *  collect from well, save island to request anchor if it is unclaimed or enemy
+     * if well
+     *  collect from well, return to hq, deposit and tell hq about it
+     * else walk away from hq
+     */
+    static void runCarrier2(RobotController rc) throws GameActionException {
+        StringBuilder statusString = new StringBuilder();
+        //save hq you spawned from
+        if( turnCount == 1) {
+            hqLocation = findHq(rc);
+        }
+        //save other hq locations too
+        if (turnCount ==2){
+            //todo Save other hq locations read from communications array
+        }
+
+        //are we close to home? do home things
+        int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
+        if (distanceToHq < 2) {
+            depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
+            if (knownIslandLocations.size() > 0) {
+                //if hq has an anchor, pick it up.
+                if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
+                    rc.takeAnchor(hqLocation, Anchor.STANDARD);
+                }
+                else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
+                    rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
+                }
+            }
+
+        }
+
+
+        //search for islands and wells in sight
+        WellInfo[] visibleWells = rc.senseNearbyWells();
+        //islands by team
+        int[] islands = rc.senseNearbyIslands();
+        Set<MapLocation> islandLocs = new HashSet<>(); //neutral islands = enum value of 2
+        Set<MapLocation> ourIslandLocs = new HashSet<>();
+        Set<MapLocation> enemyIslandLocs = new HashSet<>();
+        for (int id : islands) {
+            Team islandteam = rc.senseTeamOccupyingIsland(id);
+            if (islandteam == rc.getTeam()){
+                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+            }
+            else if (islandteam != rc.getTeam()){
+                if ( islandteam == Team.NEUTRAL ) { //neutral
+                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                    islandLocs.addAll(Arrays.asList(thisIslandLocs));
+                }
+                else { //enemy
+                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                    enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                }
+            }
+        }
+        //if unclaimed island - report this island
+        if (islandLocs.size() > 0 || islandLocation != null) { //todo maybe follow the one we know about first
+            //remember island exists
+            islandLocation = islandLocs.iterator().next();
+            //todo if we see an aplifyer nearby, just say it
+            //else return to hq to talk about it, (request anchor for island)
+            statusString.append("Returning to HQ with island info. ");
+            int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
+            //todo maybe a move request that we can decide on performing later?
+            if (distanceToHQ > 10 && rc.isMovementReady()) {
+                rc.move(  getDirectionToLocation(rc , hqLocation) );
+            }
+            if (distanceToHQ <= 9 ){
+                //todo transmit about island location
+            }
+        }
+        //look for command from communication array
+        //*  execute command, might just be adding island or well to known list.
+        List<RobotRequest> requests = scoutingRadio.readScoutRequest();
+        if(!requests.isEmpty()){
+            RobotRequest acceptedRequest = requests.get(0);
+            scoutingRadio.sendScoutAccept( acceptedRequest );
+            MapLocation cmdTarget = new MapLocation(acceptedRequest.location.x, acceptedRequest.location.y);
+            statusString.append("Heard Radio Call to ("+cmdTarget.x+","+cmdTarget.y+") ");
+            //todo maybe a move request
+            //move to location
+            int distanceToXY = rc.getLocation().distanceSquaredTo(cmdTarget);
+            if (distanceToXY > 10 && rc.isMovementReady()) {
+                rc.move(getDirectionToLocation(rc, cmdTarget));
+            }
+        }
+        //if it is full of either resource, go home.
+        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
+        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
+        if(isCarrierFull) {
+            depositToHQ(rc, statusString);
+        }
+        // Try to gather from squares around us.
+        boolean didGather = gatherNearbyResources(rc, statusString);
+
+        //attack enemy if seen
+        carrierAttack(rc, statusString);
+
+        //if well and island
+        //  collect from well, save island to request anchor if it is unclaimed or enemy
+        // kinda already have this?
+
+        // if well
+        //  collect from well, return to hq, deposit and tell hq about it
+        // If we can see a well, move towards it
+        wellLogic2(rc, statusString);
+
+        // else walk away from hq
+
+        rc.setIndicatorString(statusString.toString());
+    }//end runCarrier2
+
+
 
     /**
      * Run a single turn for a Carrier.
@@ -247,7 +380,7 @@ public strictfp class RobotPlayer {
         final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
         boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
         if(isCarrierFull) {
-            depositToHQ(rc, statusString);
+            depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
         }
 
         // Try to gather from squares around us.
@@ -441,6 +574,25 @@ public strictfp class RobotPlayer {
                 if (rc.canSenseRobotAtLocation(testLocation)) {
                     RobotInfo detectedBot = rc.senseRobotAtLocation(testLocation);
                     if(detectedBot.getTeam() == team && detectedBot.getType() == roboType) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * detect number of robots of team around location
+     */
+    static int countNumBotsAroundLocation (RobotController rc, MapLocation location, Team team) throws GameActionException {
+        int count = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                MapLocation testLocation = new MapLocation(location.x + dx, location.y + dy);
+                if (rc.canSenseRobotAtLocation(testLocation)) {
+                    RobotInfo detectedBot = rc.senseRobotAtLocation(testLocation);
+                    if(detectedBot.getTeam() == team) {
                         count++;
                     }
                 }
