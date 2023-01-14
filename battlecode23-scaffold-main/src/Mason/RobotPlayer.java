@@ -6,6 +6,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * RobotPlayer is the class that describes your main robot strategy.
@@ -36,6 +38,8 @@ public strictfp class RobotPlayer {
 
     //remember well location
     static MapLocation wellLocation = null;
+    //well blacklist
+    static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
 
     /** Array containing all the possible movement directions. */
     static final Direction[] directions = {
@@ -160,8 +164,9 @@ public strictfp class RobotPlayer {
         }
         else{
             // If we don't have an anchor, build one!
-            rc.getNumAnchors(Anchor.STANDARD);
-            if (rc.getAnchor() == null) {
+            if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
+                    rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
+                    rc.getResourceAmount(ResourceType.MANA) > 200) {
                 buildAnchorSTD(rc);
             }
             if (rng.nextBoolean()) {
@@ -206,7 +211,7 @@ public strictfp class RobotPlayer {
             //rc.setIndicatorString("Moving my anchor towards " + islandLocation);
             statusString.append("Moving my anchor towards " + islandLocation + ". ");
             while (!rc.getLocation().equals(islandLocation)) {
-                Direction dir = rc.getLocation().directionTo(islandLocation);
+                Direction dir = getDirectionToLocation(rc, islandLocation);
                 if (rc.canMove(dir)) {
                     rc.move(dir);
                 }
@@ -280,6 +285,119 @@ public strictfp class RobotPlayer {
     }
 
     /**
+     * well logic 2 here
+     * goal.. find a new well if the current one is surrounded by 3 or more of our carriers
+     *
+     * if we don't have a well location
+     *  find one not on blacklist / walk to it
+     * if we do have a well location
+     *  check if it is surrounded
+     *  if it is surrounded, blacklist this well
+     *      find a new well / walk to it
+     *  if it's not surrounded
+     *      mine from it
+     */
+    static void wellLogic2(RobotController rc, StringBuilder statusString) throws GameActionException {
+        if (wellLocation == null){
+            WellInfo[] wells = rc.senseNearbyWells();
+            if (wells.length > 0) {
+                statusString.append("Well Detected. ");
+                //only choose wells not on a blacklist of well locations
+                for (WellInfo well : wells) {
+                    MapLocation well_location = well.getMapLocation();
+                    if (!wellBlackList.contains(well_location)) {
+                        wellLocation = well.getMapLocation();
+                        break;
+                    }
+                }
+                //if we don't have a valid well by now, must go find one
+                if(wellLocation == null) {
+                    // randomly move to find well
+                    statusString.append("FindEmptyWell. ");
+                    randomWalk(rc, statusString);
+                }
+                else { //go to the well
+                    Direction dir = getDirectionToLocation(rc, wellLocation);
+                    if (rc.canMove(dir))
+                        rc.move(dir);
+                }
+            }
+            else { //no well in sight
+                // randomly move to find well
+                statusString.append("FindEmptyWell. ");
+                randomWalk(rc, statusString);
+            }
+        }
+        else {
+            // or if we know a well, go to it.
+            statusString.append("Well walk. ");
+            boolean blackwell = false;
+            //if there are several of our carriers on a well, blacklist this well
+            if (rc.getLocation().distanceSquaredTo(wellLocation) <= 20) {
+                if (countBotsAroundLocation(rc, wellLocation, RobotType.CARRIER, rc.getTeam()) > 2) {
+                    //blacklist this well location
+                        wellBlackList.add(wellLocation);
+                        blackwell = true;
+                }
+            }
+            if (!blackwell){ //otherwise move to it
+                Direction dir = getDirectionToLocation(rc, wellLocation);
+                if (rc.canMove(dir))
+                    rc.move(dir);
+            }
+
+        }
+    }
+
+    /**
+     * detect number of roboType of team around location
+     */
+    static int countBotsAroundLocation (RobotController rc, MapLocation location, RobotType roboType, Team team) throws GameActionException {
+        int count = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                MapLocation testLocation = new MapLocation(location.x + dx, location.y + dy);
+                if (rc.canSenseRobotAtLocation(testLocation)) {
+                    RobotInfo detectedBot = rc.senseRobotAtLocation(testLocation);
+                    if(detectedBot.getTeam() == team && detectedBot.getType() == roboType) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * original well logic here
+     */
+    static void wellLogic(RobotController rc, StringBuilder statusString) throws GameActionException {
+        if (wellLocation == null){
+            WellInfo[] wells = rc.senseNearbyWells();
+            if (wells.length > 0) {
+                statusString.append("Well Detected. ");
+                WellInfo well_one = wells[0];
+                wellLocation = well_one.getMapLocation();
+                Direction dir = getDirectionToLocation(rc, wellLocation);
+                if (rc.canMove(dir))
+                    rc.move(dir);
+            }
+            else {
+                // randomly move to find well
+                statusString.append("FindWell. ");
+                randomWalk(rc, statusString);
+            }
+        }
+        else {
+            // or if we know a well, go to it.
+            statusString.append("Well walk. ");
+            Direction dir = getDirectionToLocation(rc, wellLocation);
+            if (rc.canMove(dir))
+                rc.move(dir);
+        }
+    }
+
+    /**
      * Run a single turn for a Carrier.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
@@ -292,8 +410,14 @@ public strictfp class RobotPlayer {
         if(wasHqFound) {
             statusString.append("HQ:" + hqLocation + ". ");
         }
-        if (rc.getAnchor() != null) {
-            // If I have an anchor singularly focus on getting it to the first island I see
+        //if hq has an anchor, pick it up.
+        if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
+            rc.takeAnchor(hqLocation, Anchor.STANDARD);
+        }
+        else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
+            rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
+        }
+        if (rc.getAnchor() != null) { // If I have an anchor singularly focus on getting it to the first island I see
             anchorDelivery(rc, statusString);
         }
         //if it is full of either resource, go home.
@@ -307,42 +431,11 @@ public strictfp class RobotPlayer {
         boolean didGather = gatherNearbyResources(rc, statusString);
 
         // Occasionally try out the carriers attack
-        /*
-        if (rng.nextInt(20) == 1) {
-            RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-            if (enemyRobots.length > 0) {
-                if (rc.canAttack(enemyRobots[0].location)) {
-                    rc.attack(enemyRobots[0].location);
-                }
-            }
-        }
-        */
+        carrierAttack(rc, statusString);
 
         // If we can see a well, move towards it
-        if (wellLocation == null){
-            WellInfo[] wells = rc.senseNearbyWells();
-            if (wells.length > 0) {
-                //rc.setIndicatorString("Well Detected");
-                statusString.append("Well Detected. ");
-                WellInfo well_one = wells[0];
-                wellLocation = well_one.getMapLocation();
-                Direction dir = rc.getLocation().directionTo(wellLocation);
-                if (rc.canMove(dir))
-                    rc.move(dir);
-            }
-            else {
-                // randomly move to find well
-                statusString.append("FindWell. ");
-                randomWalk(rc, statusString);
-            }
-        }
-        else {
-            // or if we know a well, go to it.
-            statusString.append("Well walk. ");
-            Direction dir = rc.getLocation().directionTo(wellLocation);
-            if (rc.canMove(dir))
-                rc.move(dir);
-        }
+        wellLogic2(rc, statusString);
+
         statusString.append("NoOP");
         rc.setIndicatorString(statusString.toString());
     }//end runCarrier
@@ -377,6 +470,20 @@ public strictfp class RobotPlayer {
             }
         }
         return dir;
+    }
+
+    /**
+     * basic carrier attack
+     */
+    static void carrierAttack (RobotController rc, StringBuilder statusString) throws GameActionException {
+        if (rng.nextInt(20) == 1) {
+            RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+            if (enemyRobots.length > 0) {
+                if (rc.canAttack(enemyRobots[0].location) && enemyRobots[0].getType() != RobotType.CARRIER && enemyRobots[0].getType() != RobotType.HEADQUARTERS) {
+                    rc.attack(enemyRobots[0].location);
+                }
+            }
+        }
     }
 
     /**
