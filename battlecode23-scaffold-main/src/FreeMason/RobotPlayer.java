@@ -35,6 +35,8 @@ public strictfp class RobotPlayer {
     static MapLocation wellLocation = null;
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
+    //remember last direction traversed
+    static Direction lastDir = null;
 
     static RobotRadio scoutingRadio;
 
@@ -136,7 +138,7 @@ public strictfp class RobotPlayer {
     static int carrierBuilder (RobotController rc, StringBuilder statusString) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         int carrierCount = countBotsAroundLocation(rc, myLocation, RobotType.CARRIER, rc.getTeam());
-        if (carrierCount > 5) {
+        if (carrierCount > 2) {
             statusString.append("TooCrowdedToBuildCarrier");
             return 0;
         }
@@ -208,7 +210,6 @@ public strictfp class RobotPlayer {
     }
 
 
-
     /**
      * Run a single turn for a Carrier.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
@@ -230,6 +231,7 @@ public strictfp class RobotPlayer {
         }
         if(wasHqFound) {
             statusString.append("HQ:" + hqLocation + ". ");
+            statusString.append("MyID:" + rc.getID() + ". ");
         }
         //if hq has an anchor, pick it up.
         if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
@@ -448,7 +450,7 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * original well logic here
+     * launcher well logic here
      */
     static void wellLogic(RobotController rc, StringBuilder statusString) throws GameActionException {
         if (wellLocation == null){
@@ -457,7 +459,9 @@ public strictfp class RobotPlayer {
                 statusString.append("Well Detected. ");
                 WellInfo well_one = wells[0];
                 wellLocation = well_one.getMapLocation();
-                Direction dir = getDirectionToLocation(rc, wellLocation);
+                //add a random direction to the well location...twice
+                Direction rdm = directions[rng.nextInt(directions.length)];
+                Direction dir = getDirectionToLocation(rc, wellLocation.add(rdm).add(rdm));
                 if (rc.canMove(dir))
                     rc.move(dir);
             }
@@ -468,11 +472,25 @@ public strictfp class RobotPlayer {
             }
         }
         else {
-            // or if we know a well, go to it.
-            statusString.append("Well walk. ");
-            Direction dir = getDirectionToLocation(rc, wellLocation);
-            if (rc.canMove(dir))
-                rc.move(dir);
+            Direction rdm = directions[rng.nextInt(directions.length)];
+            //if we are on a well, get off of it
+            statusString.append("crap i'm on a well. ");
+            Direction clear = findClearTile(rc);
+            if (rc.getLocation() == wellLocation) {
+                if (rc.canMove(clear)){
+                    rc.move(clear);
+                }
+            }
+            else{
+                // or if we know a well, go to it.
+                statusString.append("Well walk. ");
+                //add a random direction to the well location
+                Direction dir = getDirectionToLocation(rc, wellLocation.add(rdm).add(rdm));
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
+                }
+            }
+
         }
     }
 
@@ -520,6 +538,10 @@ public strictfp class RobotPlayer {
                 statusString.append("Attacking:" + enemies[0].location + ". ");
                 rc.attack(toAttack);
             }
+            Direction attackDir = getDirectionToLocation(rc, enemies[0].location);
+            if (rc.canMove(attackDir)) {
+                rc.move(attackDir);
+            }
         }
     }
 
@@ -552,16 +574,36 @@ public strictfp class RobotPlayer {
     }
 
     /**
+     * find clear direction to walk
+     */
+    static Direction findClearTile(RobotController rc) throws GameActionException {
+        MapLocation me = rc.getLocation();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 && dy != 0) {
+                    MapLocation testLocation = new MapLocation(me.x + dx, me.y + dy);
+                    Direction testDirection = me.directionTo(testLocation);
+                    if(rc.canMove(testDirection)){
+                        return testDirection;
+                    }
+                }
+            }
+        }
+        //fail to random dir
+        return directions[rng.nextInt(directions.length)];
+    }
+
+    /**
      * Run a single turn for a Launcher.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runLauncher(RobotController rc) throws GameActionException {
         StringBuilder statusString = new StringBuilder();
-        // Try to attack someone
+        // Try to attack someone and chase them
         launcherAttack(rc, statusString);
 
-        // Also try to move randomly.
-        randomWalk(rc, statusString);
+        // Also try to defend wells by pathing towards them once found
+        wellLogic(rc, statusString);
 
         rc.setIndicatorString(statusString.toString());
     }
