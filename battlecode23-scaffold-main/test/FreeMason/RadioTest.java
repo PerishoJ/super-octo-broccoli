@@ -6,9 +6,7 @@ import battlecode.common.MapLocation;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.Map;
 
-import static java.lang.Math.log;
 import static org.junit.Assert.*;
 
 public class RadioTest {
@@ -18,7 +16,7 @@ public class RadioTest {
         MockRobotController rc = new MockRobotController();
         RobotRadio uut = new RobotRadio(rc);
         RobotRequest testRequest = new RobotRequest( new MapLocation(10,13) , 7  );
-        uut.sendScoutRequest(testRequest.location,testRequest.numberOfRequestedBots);
+        uut.sendScoutRequest(testRequest.location,testRequest.getRequestedBotsNum());
         List<RobotRequest> requests = uut.readScoutRequest();
         assertEquals( 1 , requests.size());
         assertEquals(testRequest , requests.get(0));
@@ -29,9 +27,9 @@ public class RadioTest {
         MockRobotController rc = new MockRobotController();
         RobotRadio uut = new RobotRadio(rc);
         RobotRequest testRequest = new RobotRequest( new MapLocation(10,13) , 7  );
-        uut.sendScoutRequest(testRequest.location,testRequest.numberOfRequestedBots);
+        uut.sendScoutRequest(testRequest.location,testRequest.getRequestedBotsNum());
         RobotRequest testRequest2 = new RobotRequest( new MapLocation(15,78) , 12 );
-        uut.sendScoutRequest(testRequest2.location,testRequest2.numberOfRequestedBots);
+        uut.sendScoutRequest(testRequest2.location,testRequest2.getRequestedBotsNum());
         List<RobotRequest> requests = uut.readScoutRequest();
         assertEquals( 2 , requests.size());
         assertTrue(requests.contains(testRequest));
@@ -43,9 +41,9 @@ public class RadioTest {
         MockRobotController rc = new MockRobotController();
         RobotRadio uut = new RobotRadio(rc);
         RobotRequest testRequest = new RobotRequest( new MapLocation(10,13) , 1  );
-        uut.sendScoutRequest(testRequest.location,testRequest.numberOfRequestedBots);
+        uut.sendScoutRequest(testRequest.location,testRequest.getRequestedBotsNum());
         RobotRequest testRequest2 = new RobotRequest( new MapLocation(15,78) , 1 );
-        uut.sendScoutRequest(testRequest2.location,testRequest2.numberOfRequestedBots);
+        uut.sendScoutRequest(testRequest2.location,testRequest2.getRequestedBotsNum());
         List<RobotRequest> requests = uut.readScoutRequest();
         RobotRequest acceptedRequest = requests.get(0);
         uut.sendScoutAccept(acceptedRequest );
