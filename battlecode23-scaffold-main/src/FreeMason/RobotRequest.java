@@ -8,10 +8,12 @@ import java.util.Objects;
 
 public class RobotRequest {
     public static final int[] GREEN = new int[]{0, 255, 0};
-    public static int MSG_SIZE = 3;
-    public static int X_OFFSET = 1;
-    public static int Y_OFFSET = 2;
+    public static final int MSG_SIZE ;
+    public static int COORD_OFFSET ;
+    public static int PLACEHOLDER_OFFSET ;
+
     public static int BOTS_OFFSET = 0;
+
 
     public static int LAST_OFFSET_POSITION;
     public MapLocation location;
@@ -21,14 +23,17 @@ public class RobotRequest {
     public boolean isWritten = false;
 
     static{
-        LAST_OFFSET_POSITION = MSG_SIZE * RobotRadio.MAX_MSG_COUNT + RobotRadio.INDEX_START;
+        MSG_SIZE =  (RobotRadio.canPackMapLocation() ?  2 :  3) ;//TODO rem to inc if we use placeholder value
+        LAST_OFFSET_POSITION = MSG_SIZE * RobotRadio.MAX_SCOUT_MSG_COUNT + RobotRadio.SCOUT_INDEX_START;
+        COORD_OFFSET = BOTS_OFFSET + 1;
+        //JUST in case we want to add some more data to this...for shits and giggles
+        PLACEHOLDER_OFFSET = COORD_OFFSET + (RobotRadio.canPackMapLocation()?1:2) ;
     }
     /**
      * Creates a Request that is to be sent to the communications array
      *
      * @param location
      * @param numberOfRequestedBots
-     * @param commArrayOffset
      * @throws GameActionException
      */
     public RobotRequest(MapLocation location, int numberOfRequestedBots) throws GameActionException {
@@ -45,7 +50,7 @@ public class RobotRequest {
      * @throws GameActionException
      */
     public RobotRequest(int commArrayOffset, RobotController rc) throws GameActionException {
-        location = new MapLocation(rc.readSharedArray(commArrayOffset + X_OFFSET), rc.readSharedArray(commArrayOffset + Y_OFFSET));
+        location = RobotRadio.readMapLocationFromArray(commArrayOffset + COORD_OFFSET);
         numberOfRequestedBots = rc.readSharedArray(commArrayOffset + BOTS_OFFSET);
         this.commArrayOffset = commArrayOffset;
     }
@@ -57,9 +62,8 @@ public class RobotRequest {
      * @throws GameActionException
      */
     public void writeRequest(RobotController rc) throws GameActionException {
-        rc.writeSharedArray(commArrayOffset + X_OFFSET, location.x);
-        rc.writeSharedArray(commArrayOffset + Y_OFFSET, location.y);
         rc.writeSharedArray(commArrayOffset + BOTS_OFFSET, numberOfRequestedBots);
+        RobotRadio.writeMapLocationToArray( commArrayOffset + COORD_OFFSET, new MapLocation(location.x,location.y));
     }
 
     /**
@@ -70,7 +74,7 @@ public class RobotRequest {
     public boolean answerRequest(RobotController rc) throws GameActionException {
         if (numberOfRequestedBots > 0) {
             numberOfRequestedBots--;
-            rc.writeSharedArray(commArrayOffset + 3, numberOfRequestedBots);
+            rc.writeSharedArray(commArrayOffset + BOTS_OFFSET, numberOfRequestedBots);
             rc.setIndicatorDot(location, GREEN[0], GREEN[1], GREEN[2]);
             return true;
         } else {
@@ -89,6 +93,7 @@ public class RobotRequest {
 
     public int incrementOffset(){
         this.commArrayOffset += RobotRequest.MSG_SIZE;
+        //don't write past the place we alotted.
         if(this.commArrayOffset>LAST_OFFSET_POSITION) {
             this.commArrayOffset = LAST_OFFSET_POSITION;
         }
