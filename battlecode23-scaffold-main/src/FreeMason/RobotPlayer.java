@@ -36,6 +36,8 @@ public strictfp class RobotPlayer {
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
 
+    static RobotRadio scoutingRadio;
+
     /** Array containing all the possible movement directions. */
     static final Direction[] directions = {
         Direction.NORTH,
@@ -64,6 +66,7 @@ public strictfp class RobotPlayer {
 
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
+        scoutingRadio = new RobotRadio(rc);
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
@@ -151,6 +154,12 @@ public strictfp class RobotPlayer {
         if (turnCount == 1) {
             // Build an anchor first thing.
             buildAnchorSTD(rc);
+
+        }
+        if(turnCount == 2){
+            rc.setIndicatorString("Calling for help");
+            scoutingRadio.sendScoutRequest( new MapLocation( 5, 5), 2);
+            scoutingRadio.sendScoutRequest( new MapLocation( 20, 20), 2);
         }
         if (turnCount < 4) {
             // Let's try to build a carrier first.
@@ -401,6 +410,15 @@ public strictfp class RobotPlayer {
         boolean wasHqFound = !(hqLocation == null);
         if (!wasHqFound) {
             hqLocation = findHq(rc);
+        }
+        //ANSWER THE CALL!
+        if (turnCount == 5){
+           List<RobotRequest> requests = scoutingRadio.readScoutRequest();
+           if(!requests.isEmpty()){
+               RobotRequest acceptedRequest = requests.get(0);
+               scoutingRadio.sendScoutAccept( acceptedRequest );
+               statusString.append("Heard Radio Call to ("+acceptedRequest.location.x+","+acceptedRequest.location.y+")");
+           }
         }
         if(wasHqFound) {
             statusString.append("HQ:" + hqLocation + ". ");
