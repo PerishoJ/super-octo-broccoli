@@ -22,6 +22,11 @@ public strictfp class RobotPlayer {
     static int turnCount = 0;
 
     /**
+     * remember last direction
+     */
+    static Direction lastDir = null;
+
+    /**
      * A random number generator.
      * We will use this RNG to make some random moves. The Random class is provided by the java.util.Random
      * import at the top of this file. Here, we *seed* the RNG with a constant number (6147); this makes sure
@@ -112,10 +117,11 @@ public strictfp class RobotPlayer {
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
         MapLocation newLoc = rc.getLocation().add(dir);
-        if (turnCount == 1 && rc.canBuildAnchor(Anchor.STANDARD)) {
-            // If we can build an anchor do it!
-            rc.buildAnchor(Anchor.STANDARD);
-            rc.setIndicatorString("Building anchor! " + rc.getAnchor());
+        // If we don't have an anchor, build one!
+        if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
+                rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
+                rc.getResourceAmount(ResourceType.MANA) > 200) {
+            buildAnchorSTD(rc);
         }
         if (rng.nextBoolean()) {
             // Let's try to build a carrier.
@@ -129,6 +135,17 @@ public strictfp class RobotPlayer {
             if (rc.canBuildRobot(RobotType.LAUNCHER, newLoc)) {
                 rc.buildRobot(RobotType.LAUNCHER, newLoc);
             }
+        }
+    }
+
+    /**
+     * Checks if we can build a standard Anchor and does so
+     */
+    static void buildAnchorSTD(RobotController rc) throws GameActionException {
+        if (rc.canBuildAnchor(Anchor.STANDARD)) {
+            // If we can build an anchor do it!
+            rc.buildAnchor(Anchor.STANDARD);
+            rc.setIndicatorString("Building anchor! " + rc.getAnchor());
         }
     }
 
@@ -199,6 +216,12 @@ public strictfp class RobotPlayer {
         }
         // Also try to move randomly.
         Direction dir = directions[rng.nextInt(directions.length)];
+        if (rng.nextInt(4) == 1)
+        {
+            if (rc.canMove(lastDir)) {
+                rc.move(lastDir);
+            }
+        }
         if (rc.canMove(dir)) {
             rc.move(dir);
         }

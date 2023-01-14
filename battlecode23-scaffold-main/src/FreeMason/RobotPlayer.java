@@ -112,33 +112,59 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Checks if we can build a Carrier and does so
+     * write hq location to commArray
+     * command code 0 is hq location command code
+     * two extra ints might be used for something else later, like maybe the commands it wants to signal
      */
-    static void buildCarrier(RobotController rc, MapLocation newLoc) throws GameActionException {
-        if (rc.canBuildRobot(RobotType.CARRIER, newLoc)) {
-            rc.buildRobot(RobotType.CARRIER, newLoc);
-        }
+    static void DecalareHQLocationTurn0 (RobotController rc){
+        MapLocation me = rc.getLocation();
+        //writeCommand(0, me.x, me.y, 0, 0);
     }
 
     /**
-     * Checks if we can build a standard Anchor and does so
+     *write hq vector for a robot id
      */
-    static void buildAnchorSTD(RobotController rc) throws GameActionException {
-        if (rc.canBuildAnchor(Anchor.STANDARD)) {
-            // If we can build an anchor do it!
-            rc.buildAnchor(Anchor.STANDARD);
-            rc.setIndicatorString("Building anchor! " + rc.getAnchor());
-        }
-    }
+
 
     /**
-     * Checks if we can build a Launcher and does so
+     * decide on weather to make more carriers based on how many are around you
+     * return carrier id
      */
-    static void buildLauncher(RobotController rc, MapLocation newLoc) throws GameActionException {
-        if (rc.canBuildRobot(RobotType.LAUNCHER, newLoc)) {
-            rc.buildRobot(RobotType.LAUNCHER, newLoc);
+    static int carrierBuilder (RobotController rc, StringBuilder statusString) throws GameActionException {
+        MapLocation myLocation = rc.getLocation();
+        int carrierCount = countBotsAroundLocation(rc, myLocation, RobotType.CARRIER, rc.getTeam());
+        if (carrierCount > 5) {
+            statusString.append("TooCrowdedToBuildCarrier");
+            return 0;
         }
-    }
+        else {
+            //find a square to build a carrier on
+            MapLocation buildLocation = null;
+            outerloop:
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx != 0 && dy != 0) {
+                        MapLocation testLocation = new MapLocation(myLocation.x + dx, myLocation.y + dy);
+                        //if testLocation doesn't have a robot on it, build there
+                        if (!rc.canSenseRobotAtLocation(testLocation)){
+                            buildLocation = testLocation;
+                            break outerloop;
+                        }
+                    }
+                }
+            }
+            HqUtils.buildCarrier(rc, buildLocation);
+            //find id of built carrier
+            RobotInfo newBuildInfo = rc.senseRobotAtLocation(buildLocation);
+            return newBuildInfo.ID;
+        }
+    }//end carrierBuilder
+
+    /**
+     *
+     */
+
+
 
     /**
      * Run a single turn for a Headquarters.
@@ -150,36 +176,81 @@ public strictfp class RobotPlayer {
         MapLocation newLoc = rc.getLocation().add(dir);
         if (turnCount == 1) {
             // Build an anchor first thing.
-            buildAnchorSTD(rc);
+            HqUtils.buildAnchorSTD(rc);
         }
         if (turnCount < 4) {
             // Let's try to build a carrier first.
             rc.setIndicatorString("Trying to build a carrier first");
-            buildCarrier(rc, newLoc);
+            HqUtils.buildCarrier(rc, newLoc);
         }
         else{
             // If we don't have an anchor, build one!
             if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
                     rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
                     rc.getResourceAmount(ResourceType.MANA) > 200) {
-                buildAnchorSTD(rc);
+                HqUtils.buildAnchorSTD(rc);
             }
             if (rng.nextBoolean()) {
                 // Let's try to build a carrier.
                 rc.setIndicatorString("Trying to build a carrier");
-                buildCarrier(rc, newLoc);
+                carrierBuilder(rc);
             } else {
                 // Let's try to build a launcher.
                 rc.setIndicatorString("Trying to build a launcher");
-                buildLauncher(rc, newLoc);
+                HqUtils.buildLauncher(rc, newLoc);
             }
         }
 
     }
 
+
+
     /**
-    * Searches nearby for the Headquarters. This should be run to init the bot.
-    */
+     * Run a single turn for a Carrier.
+     * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
+     */
+    static void runCarrier(RobotController rc) throws GameActionException {
+        StringBuilder statusString = new StringBuilder();
+        boolean wasHqFound = !(hqLocation == null);
+        if (!wasHqFound) {
+            hqLocation = findHq(rc);
+        }
+        if(wasHqFound) {
+            statusString.append("HQ:" + hqLocation + ". ");
+        }
+        //if hq has an anchor, pick it up.
+        if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
+            rc.takeAnchor(hqLocation, Anchor.STANDARD);
+        }
+        else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
+            rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
+        }
+        if (rc.getAnchor() != null) { // If I have an anchor singularly focus on getting it to the first island I see
+            anchorDelivery(rc, statusString);
+        }
+        //if it is full of either resource, go home.
+        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
+        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
+        if(isCarrierFull) {
+            depositToHQ(rc, statusString);
+        }
+
+        // Try to gather from squares around us.
+        boolean didGather = gatherNearbyResources(rc, statusString);
+
+        // Occasionally try out the carriers attack
+        carrierAttack(rc, statusString);
+
+        // If we can see a well, move towards it
+        wellLogic2(rc, statusString);
+
+        statusString.append("NoOP");
+        rc.setIndicatorString(statusString.toString());
+    }//end runCarrier
+
+    /**
+     * Searches nearby for the Headquarters. This should be run to init the bot.
+     */
     static MapLocation findHq(RobotController rc) throws GameActionException {
         MapLocation headQuarters = null;
         RobotInfo[] robots = rc.senseNearbyRobots(-1, rc.getTeam());
@@ -219,7 +290,7 @@ public strictfp class RobotPlayer {
         }
     }
 
-    /** todo
+    /**
      * Check all adjacent squares and gather if we can
      */
     static boolean gatherNearbyResources(RobotController rc, StringBuilder statusString) throws GameActionException {
@@ -331,8 +402,8 @@ public strictfp class RobotPlayer {
             if (rc.getLocation().distanceSquaredTo(wellLocation) <= 20) {
                 if (countBotsAroundLocation(rc, wellLocation, RobotType.CARRIER, rc.getTeam()) > 2) {
                     //blacklist this well location
-                        wellBlackList.add(wellLocation);
-                        blackwell = true;
+                    wellBlackList.add(wellLocation);
+                    blackwell = true;
                 }
             }
             if (!blackwell){ //otherwise move to it
@@ -393,69 +464,10 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Run a single turn for a Carrier.
-     * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
-     */
-    static void runCarrier(RobotController rc) throws GameActionException {
-        StringBuilder statusString = new StringBuilder();
-        boolean wasHqFound = !(hqLocation == null);
-        if (!wasHqFound) {
-            hqLocation = findHq(rc);
-        }
-        if(wasHqFound) {
-            statusString.append("HQ:" + hqLocation + ". ");
-        }
-        //if hq has an anchor, pick it up.
-        if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
-            rc.takeAnchor(hqLocation, Anchor.STANDARD);
-        }
-        else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
-            rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
-        }
-        if (rc.getAnchor() != null) { // If I have an anchor singularly focus on getting it to the first island I see
-            anchorDelivery(rc, statusString);
-        }
-        //if it is full of either resource, go home.
-        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
-        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
-        if(isCarrierFull) {
-            depositToHQ(rc, statusString);
-        }
-
-        // Try to gather from squares around us.
-        boolean didGather = gatherNearbyResources(rc, statusString);
-
-        // Occasionally try out the carriers attack
-        carrierAttack(rc, statusString);
-
-        // If we can see a well, move towards it
-        wellLogic2(rc, statusString);
-
-        statusString.append("NoOP");
-        rc.setIndicatorString(statusString.toString());
-    }//end runCarrier
-
-    /**
      * if the path is blocked, rotate right
      */
     private static Direction getDirectionToLocation(RobotController rc , MapLocation location ) throws GameActionException {
         Direction dir = rc.getLocation().directionTo(location);
-        //find a direction we can actually move to
-        for(int dirs = 0  ; dirs <= directions.length ; dirs ++){
-            if(rc.canMove(dir)){
-                break;
-            } else {
-                dir = dir.rotateRight();
-            }
-        }
-        return dir;
-    }
-
-    /**
-     * if the path is blocked, rotate right
-     */
-    private static Direction getDirectionToML(RobotController rc, MapLocation ml) throws GameActionException {
-        Direction dir = rc.getLocation().directionTo(ml);
         //find a direction we can actually move to
         for(int dirs = 0  ; dirs <= directions.length ; dirs ++){
             if(rc.canMove(dir)){
@@ -506,6 +518,23 @@ public strictfp class RobotPlayer {
         if (rc.canMove(dir)) {
             statusString.append("RandomWalk:" + dir + ". ");
             rc.move(dir);
+        }
+    }
+
+    /**
+     * patrol walk - defend a square by circling it
+     */
+    static void patrolWalk (RobotController rc, MapLocation loc) {
+        //for each square around me, see if it's further away than we want to be, if not, move there
+        outerloop:
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 && dy != 0) {
+                    if(rc.getLocation().distanceSquaredTo(hqLocation) < 9 ){
+
+                    }
+                }
+            }
         }
     }
 
