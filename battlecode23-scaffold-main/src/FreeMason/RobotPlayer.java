@@ -164,22 +164,17 @@ public strictfp class RobotPlayer {
     }//end carrierBuilder
 
     /**
-     *
-     */
-
-
-
-    /**
      * Run a single turn for a Headquarters.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runHeadquarters(RobotController rc) throws GameActionException {
+        StringBuilder statusString = new StringBuilder();
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
         MapLocation newLoc = rc.getLocation().add(dir);
         if (turnCount == 1) {
             // Build an anchor first thing.
-            buildAnchorSTD(rc);
+            HqUtils.buildAnchorSTD(rc);
 
         }
         if(turnCount == 2){
@@ -202,7 +197,7 @@ public strictfp class RobotPlayer {
             if (rng.nextBoolean()) {
                 // Let's try to build a carrier.
                 rc.setIndicatorString("Trying to build a carrier");
-                carrierBuilder(rc);
+                carrierBuilder(rc, statusString);
             } else {
                 // Let's try to build a launcher.
                 rc.setIndicatorString("Trying to build a launcher");
@@ -223,6 +218,15 @@ public strictfp class RobotPlayer {
         boolean wasHqFound = !(hqLocation == null);
         if (!wasHqFound) {
             hqLocation = findHq(rc);
+        }
+        //ANSWER THE CALL!
+        if (turnCount == 5){
+            List<RobotRequest> requests = scoutingRadio.readScoutRequest();
+            if(!requests.isEmpty()){
+                RobotRequest acceptedRequest = requests.get(0);
+                scoutingRadio.sendScoutAccept( acceptedRequest );
+                statusString.append("Heard Radio Call to ("+acceptedRequest.location.x+","+acceptedRequest.location.y+")");
+            }
         }
         if(wasHqFound) {
             statusString.append("HQ:" + hqLocation + ". ");
@@ -471,58 +475,6 @@ public strictfp class RobotPlayer {
                 rc.move(dir);
         }
     }
-
-    /**
-     * Run a single turn for a Carrier.
-     * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
-     */
-    static void runCarrier(RobotController rc) throws GameActionException {
-        StringBuilder statusString = new StringBuilder();
-        boolean wasHqFound = !(hqLocation == null);
-        if (!wasHqFound) {
-            hqLocation = findHq(rc);
-        }
-        //ANSWER THE CALL!
-        if (turnCount == 5){
-           List<RobotRequest> requests = scoutingRadio.readScoutRequest();
-           if(!requests.isEmpty()){
-               RobotRequest acceptedRequest = requests.get(0);
-               scoutingRadio.sendScoutAccept( acceptedRequest );
-               statusString.append("Heard Radio Call to ("+acceptedRequest.location.x+","+acceptedRequest.location.y+")");
-           }
-        }
-        if(wasHqFound) {
-            statusString.append("HQ:" + hqLocation + ". ");
-        }
-        //if hq has an anchor, pick it up.
-        if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
-            rc.takeAnchor(hqLocation, Anchor.STANDARD);
-        }
-        else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
-            rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
-        }
-        if (rc.getAnchor() != null) { // If I have an anchor singularly focus on getting it to the first island I see
-            anchorDelivery(rc, statusString);
-        }
-        //if it is full of either resource, go home.
-        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
-        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
-        if(isCarrierFull) {
-            depositToHQ(rc, statusString);
-        }
-
-        // Try to gather from squares around us.
-        boolean didGather = gatherNearbyResources(rc, statusString);
-
-        // Occasionally try out the carriers attack
-        carrierAttack(rc, statusString);
-
-        // If we can see a well, move towards it
-        wellLogic2(rc, statusString);
-
-        statusString.append("NoOP");
-        rc.setIndicatorString(statusString.toString());
-    }//end runCarrier
 
     /**
      * if the path is blocked, rotate right
