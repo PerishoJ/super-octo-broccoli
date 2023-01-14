@@ -7,7 +7,6 @@ import battlecode.common.RobotController;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static java.lang.Math.log;
 
@@ -28,7 +27,7 @@ public class RobotRadio {
         for(int i = 0; i < MAX_SCOUT_MSG_COUNT; i++){
             //Read the requestedNumberOfRobots. If that number is 0, then this isn't a request anymore
             int currentMsgOffset = i * RobotRequest.MSG_SIZE;
-            int numBotsRequest = rc.readSharedArray(SCOUT_INDEX_START + currentMsgOffset + RobotRequest.BOTS_OFFSET);
+            int numBotsRequest = rc.readSharedArray(SCOUT_INDEX_START + currentMsgOffset + RobotRequest.METADATA_1_OFFSET);
             boolean isRequestValid = numBotsRequest>0;
             if (isRequestValid){
                 requests.add(new RobotRequest( currentMsgOffset, rc));
@@ -38,8 +37,8 @@ public class RobotRadio {
     }
 
 
-    public boolean sendScoutRequest(MapLocation location , int botsRequested) throws GameActionException {
-        RobotRequest request = new RobotRequest(location, botsRequested );
+    public boolean sendScoutRequest(MapLocation location , int requestedBots) throws GameActionException {
+        RobotRequest request = new RobotRequest(location, requestedBots );
         for(int i = 0; i< MAX_SCOUT_MSG_COUNT; i++){
             if(! request.canSendRequest(rc)){
                 request.incrementOffset();
@@ -112,22 +111,31 @@ public class RobotRadio {
         }
     }
 
-    static MapLocation unpackMapLocation( int value ){
+    public static int[] unpackCompsite(int value){
         int bits_per_array_int = (int)(log(GameConstants.MAX_SHARED_ARRAY_VALUE+1)/log(2));
         int second_value_starting_bit_position = bits_per_array_int / 2 ;
 
         int bitMask = (int)Math.pow( 2 , second_value_starting_bit_position ) - 1;
+        int[] composite = new int[2];
+        composite[1] = bitMask & value;
+        composite[0] = value >> second_value_starting_bit_position;
+        return composite;
+    }
+    public static int packCompsite( int first ,int second){
+        int bits_per_array_int = (int)(log(GameConstants.MAX_SHARED_ARRAY_VALUE+1)/log(2));
+        int y_mask = first << (bits_per_array_int / 2); // move bits to correct position
+        return ( y_mask | second) ; //put the bits together into the same int.
+    }
 
-        int firstValue = bitMask & value;
-        int secondValue = value >> second_value_starting_bit_position;
-        return new MapLocation(firstValue , secondValue);
+    static MapLocation unpackMapLocation( int value ){
+        int[] mapCoords = unpackCompsite(value);
+        return new MapLocation(mapCoords[0], mapCoords[1]);
 
     }
 
     static int packMapLocation(MapLocation location){
-        int bits_per_array_int = (int)(log(GameConstants.MAX_SHARED_ARRAY_VALUE+1)/log(2));
-        int y_mask = location.y << (bits_per_array_int / 2); // move bits to correct position
-        return ( y_mask | location.x) ; //put the bits together into the same int.
+        return packCompsite(location.x,location.y);
     }
+
 
 }
