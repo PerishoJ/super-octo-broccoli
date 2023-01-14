@@ -1,4 +1,4 @@
-package FreeMason.src;
+package FreeMason;
 
 import battlecode.common.*;
 import sun.security.provider.SHA;
