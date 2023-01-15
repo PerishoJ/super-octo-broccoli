@@ -3,6 +3,7 @@ package FreeMason;
 
 import battlecode.common.GameActionException;
 import battlecode.common.GameActionExceptionType;
+import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 
 import java.util.ArrayList;
@@ -65,7 +66,7 @@ public class MappingRadio {
         return fullVolume;
     }
 
-    // TODO write logic to keep adding blocks to volume
+
     //to write, simply check the full 32 block array, and write to the first available blocks
     public List<LocalMap.MapCellAndLoc> readBlock(int blockNumber) throws GameActionException {
         //exception handling
@@ -94,15 +95,23 @@ public class MappingRadio {
 
     private void readCellFromSharedArray(List<LocalMap.MapCellAndLoc> block, int blockOffset, int msgIndex) throws GameActionException {
         int infoBlockLocation = MAPPING_START_OFFSET + blockOffset + (msgIndex * MAP_MESSAGE_SIZE);
-        int compressedMapCell = rc.readSharedArray( infoBlockLocation );
+        int compressedMapCell = readCellBinFromArray( infoBlockLocation );
         boolean isCellGood = LocalMap.MapCell.isValidMessage(compressedMapCell); // very quickly tell if the message is any good.
         if(isCellGood){
             LocalMap.MapCellAndLoc mapCellAndLoc = new LocalMap.MapCellAndLoc();
             mapCellAndLoc.cell = new LocalMap.MapCell(compressedMapCell); //deserialize fully if good msg
             //map location is 1 after the map info
-            mapCellAndLoc.location = RobotRadio.readMapLocationFromArray(infoBlockLocation+1);
+            mapCellAndLoc.location = readLocationFromArray(infoBlockLocation);
             block.add(mapCellAndLoc);
         }
+    }
+
+    public int readCellBinFromArray(int messageIndex) throws GameActionException {
+        return rc.readSharedArray( messageIndex );
+    }
+
+    public MapLocation readLocationFromArray(int messageIndex) throws GameActionException {
+        return RobotRadio.readMapLocationFromArray(messageIndex+1);
     }
 
     public boolean isBlockFull(int blockNumber){
@@ -127,5 +136,6 @@ public class MappingRadio {
     private void scheduleGrooming(int blockNumber , int turnNumber){
         nextGroomingTurn[blockNumber] = turnNumber + gracePeriod;
     }
+
 
 }
