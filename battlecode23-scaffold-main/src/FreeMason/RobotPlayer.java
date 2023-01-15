@@ -33,11 +33,11 @@ public strictfp class RobotPlayer {
     //remember well location
     static MapLocation wellLocation = null;
     static int wellNumber = 0;
-    static Set<MapLocation> knownWellLocations = new HashSet<MapLocation>();
+    static LinkedHashSet<MapLocation> knownWellLocations = new LinkedHashSet<MapLocation>();
     //remember island location
     static MapLocation islandLocation = null;
     static MapLocation newislandLocation = null;
-    static Set<MapLocation> knownIslandLocations = new HashSet<MapLocation>();
+    static LinkedHashSet<MapLocation> knownIslandLocations = new LinkedHashSet<MapLocation>();
 
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
@@ -373,7 +373,8 @@ public strictfp class RobotPlayer {
                 newislandLocation = null;
             }
         }
-        rc.setIndicatorString(statusString + " ...wtf after report island ");
+
+            rc.setIndicatorString(statusString + " ...wtf after report island ");
         /*
         //look for command from communication array
         //  execute command, might just be adding island or well to known list.
