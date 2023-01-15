@@ -30,13 +30,14 @@ public strictfp class RobotPlayer {
 
     //remember HQ location
     static MapLocation hqLocation = null;
-
     //remember well location
     static MapLocation wellLocation = null;
-    static List<MapLocation> wellLocations = new ArrayList<MapLocation>();
+    static int wellNumber = 0;
+    static Set<MapLocation> knownWellLocations = new HashSet<MapLocation>();
     //remember island location
     static MapLocation islandLocation = null;
-    static List<MapLocation> knownIslandLocations = new ArrayList<MapLocation>();
+    static MapLocation newislandLocation = null;
+    static Set<MapLocation> knownIslandLocations = new HashSet<MapLocation>();
 
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
@@ -73,7 +74,6 @@ public strictfp class RobotPlayer {
         //System.out.println("I'm a " + rc.getType() + " and I just got created! I have health " + rc.getHealth());
 
         // You can also use indicators to save debug notes in replays.
-        rc.setIndicatorString("Hello world!");
         scoutingRadio = new RobotRadio(rc);
 
         while (true) {
@@ -178,90 +178,131 @@ public strictfp class RobotPlayer {
      */
     static void runHeadquarters(RobotController rc) throws GameActionException {
         StringBuilder statusString = new StringBuilder();
+        statusString.append(turnCount + ":");
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
         MapLocation newLoc = rc.getLocation().add(dir);
         if (turnCount == 1) {
             // Build an anchor first thing.
-            HqUtils.buildAnchorSTD(rc);
+            HqUtils.buildCarrier(rc, newLoc);
 
         }
         if(turnCount == 2){
             rc.setIndicatorString("Calling for help");
-            scoutingRadio.sendScoutRequest( new MapLocation( 5, 5), 2);
-            scoutingRadio.sendScoutRequest( new MapLocation( 20, 20), 2);
+            //scoutingRadio.sendScoutRequest( new MapLocation( 5, 5), 2);
+            //scoutingRadio.sendScoutRequest( new MapLocation( 20, 20), 2);
         }
         if (turnCount < 4) {
             // Let's try to build a carrier first.
             rc.setIndicatorString("Trying to build a carrier first");
-            HqUtils.buildCarrier(rc, newLoc);
+            HqUtils.buildLauncher(rc, newLoc);
         }
         else{
             // If we don't have an anchor, build one!
-            if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
-                    rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
-                    rc.getResourceAmount(ResourceType.MANA) > 200) {
-                HqUtils.buildAnchorSTD(rc);
-            }
-            if (rng.nextBoolean()) {
-                // Let's try to build a carrier.
-                rc.setIndicatorString("Trying to build a carrier");
-                carrierBuilder(rc, statusString);
-            } else {
-                // Let's try to build a launcher.
-                rc.setIndicatorString("Trying to build a launcher");
-                HqUtils.buildLauncher(rc, newLoc);
+            //if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
+            //        rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
+            //        rc.getResourceAmount(ResourceType.MANA) > 200) {
+            //    HqUtils.buildAnchorSTD(rc);
+            //}
+            if (rng.nextInt(10) == 1) {
+                if (rng.nextBoolean()) {
+                    // Let's try to build a carrier.
+                    rc.setIndicatorString("Trying to build a carrier");
+                    carrierBuilder(rc, statusString);
+                } else {
+                    // Let's try to build a launcher.
+                    rc.setIndicatorString("Trying to build a launcher");
+                    HqUtils.buildLauncher(rc, newLoc);
+                }
             }
         }
 
     }
 
     /**
-     * new carrier logic
+     * new carrier logic - depositing, picking up anchors, delivering, looking for islands/wells, reporting islands, following commands, mining wells, finding wells, attack enemy
      * if fist turn alive: find hq
+     *           depositing:
      * if standing next to base, deposit
+     *
+     *          picking up anchors:
      *  pick up any anchors if we know of any islands
+     *
+     *          delivering anchors:
+     * if we have an anchor, place it at cloest island we know of
+     *
+     *          looking for islands/wells
      * always search for islands and wells
-     * if island
+     * if we see an island
      *  if it is unclaimed or enemy return to hq to talk about it, request anchor for island if unclaimed
+     *
+     *          report island we can see
+     *
+     *          following commands
      * look for command from communication array
-     *  execute command, might just be adding island or well to known list.
-     * if well and island
-     *  collect from well, save island to request anchor if it is unclaimed or enemy
-     * if well
-     *  collect from well, return to hq, deposit and tell hq about it
+     *  walk to commanded location
+     *  todo: might just be adding island or well to known list.
+     *
+     *
+     *          mining wells
+     * Try to gather from squares around us.
+     * if it is full of either resource, go home.
+     * if we know of a well, go mine it.
+     *      collect from well, return to hq, deposit and tell hq about it
+     *
+     *          finding wells
      * else walk away from hq
      */
     static void runCarrier2(RobotController rc) throws GameActionException {
         StringBuilder statusString = new StringBuilder();
+        statusString.append(turnCount + ":");
         //save hq you spawned from
         if( turnCount == 1) {
             hqLocation = findHq(rc);
+            statusString.append("FoundHQ turn 1.");
         }
         //save other hq locations too
         if (turnCount ==2){
             //todo Save other hq locations read from communications array
         }
-
+        //depositing:
         //are we close to home? do home things
         int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
         if (distanceToHq < 2) {
             depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
+            //picking up anchors:
+            //if we know where to take an anchor, grab one from hq
             if (knownIslandLocations.size() > 0) {
+                statusString.append("wantAnchor. ");
                 //if hq has an anchor, pick it up.
                 if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
+                    statusString.append("pickupAnchor. ");
                     rc.takeAnchor(hqLocation, Anchor.STANDARD);
-                }
-                else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
+                } else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
                     rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
                 }
             }
-
         }
 
+        //delivering anchors:
+        if (rc.getAnchor() != null) {
+            //deliver to first island in list
+            anchorDelivery2(rc, knownIslandLocations, statusString); //todo might need to find cloest
+        }
 
-        //search for islands and wells in sight
+        //looking for islands/wells:
+        //add wells in sight
         WellInfo[] visibleWells = rc.senseNearbyWells();
+        if (visibleWells.length > 0) {
+            for (WellInfo well : visibleWells) {
+                if (!knownWellLocations.contains(well.getMapLocation())) {
+                    MapLocation thisWell = well.getMapLocation();
+                    statusString.append("saveWell"+ well.getResourceType() + "("+ thisWell + "). ");
+                    knownWellLocations.add(thisWell);
+                }
+            }
+        }
+
         //islands by team
         int[] islands = rc.senseNearbyIslands();
         Set<MapLocation> islandLocs = new HashSet<>(); //neutral islands = enum value of 2
@@ -277,31 +318,52 @@ public strictfp class RobotPlayer {
                 if ( islandteam == Team.NEUTRAL ) { //neutral
                     MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
                     islandLocs.addAll(Arrays.asList(thisIslandLocs));
+                    //add islandLocs to knownIslandLocations
+                    for (MapLocation island : islandLocs){
+                        if (!knownIslandLocations.contains(island)) {
+                            statusString.append("remIs(" + island + "). ");
+                            knownIslandLocations.add(island); //todo might need to pick cloest one to hq
+                            newislandLocation = island;
+                        }
+                    }
                 }
                 else { //enemy
                     MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
                     enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                    //todo add these too?
+                    statusString.append("seeEnemyIsland. ");
                 }
             }
         }
+
+        //report island we can see
         //if unclaimed island - report this island
-        if (islandLocs.size() > 0 || islandLocation != null) { //todo maybe follow the one we know about first
+        if (islandLocation != null) { //todo maybe follow the one we know about first?
             //remember island exists
-            islandLocation = islandLocs.iterator().next();
-            //todo if we see an aplifyer nearby, just say it
+            islandLocation = newislandLocation;
+            //todo if we see an amplifier nearby, just say it
             //else return to hq to talk about it, (request anchor for island)
-            statusString.append("Returning to HQ with island info. ");
+            statusString.append("repI("+ islandLocation +"). ");
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             //todo maybe a move request that we can decide on performing later?
             if (distanceToHQ > 10 && rc.isMovementReady()) {
-                rc.move(  getDirectionToLocation(rc , hqLocation) );
+                Direction dir = getDirectionToLocation(rc , hqLocation);
+                if (rc.canMove(dir)) {
+                    statusString.append("repMove. ");
+                    rc.move(dir);
+                }
             }
             if (distanceToHQ <= 9 ){
                 //todo transmit about island location
+                statusString.append("txIs. ");
+                newislandLocation = null;
             }
         }
+
+            rc.setIndicatorString(statusString + " ...wtf after report island ");
+        /*
         //look for command from communication array
-        //*  execute command, might just be adding island or well to known list.
+        //  execute command, might just be adding island or well to known list.
         List<RobotRequest> requests = scoutingRadio.readScoutRequest();
         if(!requests.isEmpty()){
             RobotRequest acceptedRequest = requests.get(0);
@@ -315,29 +377,81 @@ public strictfp class RobotPlayer {
                 rc.move(getDirectionToLocation(rc, cmdTarget));
             }
         }
+        //*/
+        //mining wells
+        // Try to gather from squares around us.
+        if (knownWellLocations.size() > 0) {
+            statusString.append("Mine:");
+            if (rc.getWeight() == GameConstants.CARRIER_CAPACITY) {
+                statusString.append("Full. ");
+            }
+            else {
+                for (MapLocation well : knownWellLocations) {
+                    if (rc.getLocation().distanceSquaredTo(well) <= 2) {
+                        if (rc.canCollectResource(well, -1)) {
+                            statusString.append("Mining");
+                            rc.collectResource(well, -1);
+                        }
+                    }
+                }
+            }
+            statusString.append(". ");
+        }
+        rc.setIndicatorString(statusString + " ...wtf after mining wells ");
+
         //if it is full of either resource, go home.
         final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
         boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
         if(isCarrierFull) {
+            statusString.append("isFull. ");
             depositToHQ(rc, statusString);
         }
-        // Try to gather from squares around us.
-        boolean didGather = gatherNearbyResources(rc, statusString);
 
-        //attack enemy if seen
-        carrierAttack(rc, statusString);
-
-        //if well and island
-        //  collect from well, save island to request anchor if it is unclaimed or enemy
-        // kinda already have this?
+        rc.setIndicatorString(statusString + " ...wtf after deposit to HQ ");
 
         // if well
         //  collect from well, return to hq, deposit and tell hq about it
         // If we can see a well, move towards it
-        wellLogic2(rc, statusString);
+        if (!knownWellLocations.isEmpty()) {
+            //todo pick closest well, best well?
+            //decide what well to go to based on wellNumber used last time. move on from crowded wells
+            //if well location is full, try next weld location
+            int wellLoop = wellNumber;
+            for (MapLocation well : knownWellLocations) {
+                if (wellLoop == 0){
+                    //if well is crowded, go to next well
+                    if (countBotsAroundLocation(rc, well, RobotType.CARRIER, rc.getTeam()) >= 3){
+                        //add one to wellNumber (go to next well)
+                        wellNumber++;
+                    }
+                    else{
+                        //use this well number
+                        wellLocation = well;
+                    }
+                    break;
+                }
+                wellLoop = wellLoop - 1;
+            }
 
-        // else walk away from hq
 
+            statusString.append("walk2Well. ");
+            Direction dir = getDirectionToLocation(rc, wellLocation);
+            if (rc.canMove(dir)) {
+                rc.move(dir);
+            }
+
+
+        }
+        else {
+            // else walk away from hq
+            randomWalk(rc, statusString);
+        }
+        //attack enemy if seen
+
+        rc.setIndicatorString(statusString + " ...wtf after if well ");
+
+        carrierAttack(rc, statusString);
+        statusString.append("NoOp");
         rc.setIndicatorString(statusString.toString());
     }//end runCarrier2
 
@@ -348,6 +462,8 @@ public strictfp class RobotPlayer {
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runCarrier(RobotController rc) throws GameActionException {
+        runCarrier2(rc);
+        /*
         StringBuilder statusString = new StringBuilder();
         boolean wasHqFound = !(hqLocation == null);
         if (!wasHqFound) {
@@ -394,6 +510,7 @@ public strictfp class RobotPlayer {
 
         statusString.append("NoOP");
         rc.setIndicatorString(statusString.toString());
+        */
     }//end runCarrier
 
     /**
@@ -420,8 +537,8 @@ public strictfp class RobotPlayer {
             MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
             islandLocs.addAll(Arrays.asList(thisIslandLocs));
         }
-        if (islandLocs.size() > 0) {
-            MapLocation islandLocation = islandLocs.iterator().next();
+        if (!islandLocs.isEmpty()) {
+            MapLocation islandLocation = islandLocs.stream().findFirst().get();
             //rc.setIndicatorString("Moving my anchor towards " + islandLocation);
             statusString.append("Moving my anchor towards " + islandLocation + ". ");
             while (!rc.getLocation().equals(islandLocation)) {
@@ -439,20 +556,39 @@ public strictfp class RobotPlayer {
     }
 
     /**
+     * anchor delivery
+     */
+    static void anchorDelivery2(RobotController rc, Set<MapLocation> knownIslandLocations, StringBuilder statusString) throws GameActionException {
+        if (!knownIslandLocations.isEmpty()) {
+            MapLocation islandLocation = knownIslandLocations.stream().findFirst().get();
+            statusString.append("Moving my anchor towards " + islandLocation + ". ");
+            while (!rc.getLocation().equals(islandLocation)) {
+                Direction dir = getDirectionToLocation(rc, islandLocation);
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
+                }
+            }
+            if (rc.canPlaceAnchor()) {
+                statusString.append("Huzzah, placed anchor! ");
+                rc.placeAnchor();
+            }
+        }
+    }
+
+    /**
      * Check all adjacent squares and gather if we can
      */
     static boolean gatherNearbyResources(RobotController rc, StringBuilder statusString) throws GameActionException {
         WellInfo[] wells = rc.senseNearbyWells();
-        statusString.append( " Trying to mine from well location");
+        statusString.append( "Mine. ");
         if(rc.getWeight()==GameConstants.CARRIER_CAPACITY){
-            statusString.append("This mofo can't hold no mo!");
+            statusString.append("Full. ");
             return false;
         }
         for(WellInfo well : wells){
             if(rc.canCollectResource(well.getMapLocation(),-1)){
                 rc.collectResource(well.getMapLocation() , -1 );
-                statusString.append("OHHH YEAH BABY! That's the good stuff!!!/n");
-                statusString.append("Slurping up " + well.getResourceType()+"/n");
+                statusString.append(well.getResourceType());
                 return true;
             }
         }
@@ -464,29 +600,27 @@ public strictfp class RobotPlayer {
      */
     static void depositToHQ(RobotController rc, StringBuilder statusString) throws GameActionException {
         //are we close enough to deposit resources?
-        statusString.append("isFull. ");
         if (rc.canTransferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA))) {
             //yes - deposit resources
             rc.transferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA));
-            statusString.append("Depositing Ma. ");
+            statusString.append("DepoMa. ");
         }
         else if (rc.canTransferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM))) {
             //yes - deposit resources
             rc.transferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM));
-            statusString.append("Depositing Ad. ");
+            statusString.append("DepoAd. ");
         }
         else if (rc.canTransferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR))) {
             //yes - deposit resources
             rc.transferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR));
-            statusString.append("Depositing Ex. ");
+            statusString.append("DepoEx. ");
         }
         else {
             //no - try to move towards hqLocation
-            //rc.setIndicatorString("Moving full Carrier towards hqLocation: ");// + hqLocation.toString());
-            statusString.append("Returning to HQ. ");
             //check if we are close enough to deposit resources to hq and if not, try moving closer.
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             if (distanceToHQ > 2 && rc.isMovementReady()) {
+                statusString.append("DepoWalk. ");
                 rc.move(  getDirectionToLocation(rc , hqLocation) );
             }
         }
@@ -754,8 +888,7 @@ public strictfp class RobotPlayer {
         // Try to attack someone and chase them
         launcherAttack(rc, statusString);
 
-        // Also try to defend wells by pathing towards them once found
-        wellLogic(rc, statusString);
+        randomWalk(rc, statusString);
 
         rc.setIndicatorString(statusString.toString());
     }
