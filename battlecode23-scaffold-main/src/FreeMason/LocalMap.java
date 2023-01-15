@@ -2,10 +2,7 @@ package FreeMason;
 
 import battlecode.common.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
+import java.util.*;
 
 
 /**
@@ -134,8 +131,17 @@ public class LocalMap {
         public boolean isValidMessage(){
             return temporalValue != INVALID_MESSAGE_FLAG;
         }
+
+        public static boolean isValidMessage(int packedMessage){
+            int tmprlValue = packedMessage >> 13 ; //only need last 3 bits for the Temporal Value
+            return tmprlValue != INVALID_MESSAGE_FLAG;
+        }
     }
 
+    static class MapCellAndLoc{
+        MapCell cell;
+        MapLocation location;
+    }
     static Map<MapLocation,MapCell> gameMap;
 
     public LocalMap(RobotController rc){
@@ -146,15 +152,47 @@ public class LocalMap {
         ourTeam = rc.getTeam();
     }
 
-    public MapCell getLocation(MapLocation location){
+    public MapCell getCell(MapLocation location){
         return gameMap.get(location);
     };
 
-    public MapCell getLocation(int x,int y){
-        return getLocation(new MapLocation(x,y));
+    public MapCell getCell(int x,int y){
+        return gameMap.get(new MapLocation(x,y));
     }
 
-    //charting is kinda expensive...we'll need to throttle this
+    /**
+     * Used to get info that is useful for sending to the SharedArray
+     * @param x
+     * @param y
+     * @return
+     */
+    public MapCellAndLoc getCellAndLoc(int x,int y){
+        MapLocation location = new MapLocation(x,y);
+        MapCellAndLoc mapCellAndLoc = new MapCellAndLoc();
+        mapCellAndLoc.location = location;
+        mapCellAndLoc.cell = getCell(location);
+        return mapCellAndLoc;
+    }
+    /**
+     * Used to pull updates from the SharedArray
+     * Specifically the function:
+     * MappingRadio.readBlock( blockNumber )
+     * @param mapPatch
+     */
+    public void updateMap(List<MapCellAndLoc> mapPatch){
+        for(MapCellAndLoc cellAndLoc : mapPatch){
+            gameMap.put( cellAndLoc.location, cellAndLoc.cell );
+        }
+    }
+
+    /**
+     * Used to update a map given info from the Robot scanning.
+     * Can also be used to provide info to the
+     * @param bot
+     * @param resource
+     * @param info
+     * @throws GameActionException
+     */
     public void chartLocation ( RobotInfo bot , ResourceType resource , MapInfo info) throws GameActionException {
         //TODO add temporal values ... once we actually start using them. It adds a good chunk of bytecode
         int temporalValue = TEMPORAL_VALUE_NEUTRAL;
@@ -183,4 +221,5 @@ public class LocalMap {
         tmplrVal = tmplrVal < 1 ? 1 : tmplrVal;
         return tmplrVal;
     }
+
 }
