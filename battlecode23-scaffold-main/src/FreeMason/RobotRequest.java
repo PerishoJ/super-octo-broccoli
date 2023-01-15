@@ -4,7 +4,6 @@ import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.SystemUtils;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -77,13 +76,18 @@ public class RobotRequest {
         this.commArrayOffset = commArrayOffset;
     }
 
+    public static int[] combineInt(int[] a, int[] b){
+        int length = a.length + b.length;
+        int[] result = new int[length];
+        System.arraycopy(a, 0, result, 0, a.length);
+        System.arraycopy(b, 0, result, a.length, b.length);
+        return result;
+    }
+
     private int[] readMetaData(int metadataRaw1 , int metadataRaw2){
         int[] m1 = RobotRadio.unpackCompsite(metadataRaw1);
         int[] m2 = RobotRadio.unpackCompsite(metadataRaw2);
-        int[] retArray = new int[4];
-        System.arraycopy(m1,0,retArray,0,2);
-        System.arraycopy(m2,0,retArray,2,2);
-        return retArray;
+        return ArrayUtils.addAll(m1, m2);
     }
 
     /**

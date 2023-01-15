@@ -33,11 +33,11 @@ public strictfp class RobotPlayer {
     //remember well location
     static MapLocation wellLocation = null;
     static int wellNumber = 0;
-    static LinkedHashSet<MapLocation> knownWellLocations = new LinkedHashSet<MapLocation>();
+    static Set<MapLocation> knownWellLocations = new LinkedHashSet<MapLocation>();
     //remember island location
     static MapLocation islandLocation = null;
     static MapLocation newislandLocation = null;
-    static LinkedHashSet<MapLocation> knownIslandLocations = new LinkedHashSet<MapLocation>();
+    static Set<MapLocation> knownIslandLocations = new LinkedHashSet<MapLocation>();
 
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
@@ -180,6 +180,10 @@ public strictfp class RobotPlayer {
 
         StringBuilder statusString = new StringBuilder();
         statusString.append(turnCount + ":");
+
+        hqlogic(rc, statusString);
+
+        /*
         //System.out.println("turn: " + turnCount);
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
@@ -228,6 +232,23 @@ public strictfp class RobotPlayer {
             }
         }
 
+         */
+        rc.setIndicatorString(statusString.toString());
+    }
+
+    /**
+     * test communications hq
+     */
+    static void hqlogic (RobotController rc, StringBuilder statusString) throws GameActionException {
+        if (turnCount == 2) {
+            //make a carrier
+            HqUtils.buildCarrier(rc, rc.getLocation().add(Direction.EAST));
+        }
+        if (turnCount == 4) {
+            //make anchor
+            //send a message for a carrier to take anchor to a known island. run on default map
+            scoutingRadio.sendScoutRequest(new MapLocation(20, 23), 1);
+        }
     }
 
     /**
@@ -264,7 +285,7 @@ public strictfp class RobotPlayer {
      *          finding wells
      * else walk away from hq
      */
-    static void runCarrier2(RobotController rc) throws GameActionException {
+    static void runCarrier2 (RobotController rc) throws GameActionException {
         StringBuilder statusString = new StringBuilder();
         statusString.append(turnCount + ":");
         //save hq you spawned from
@@ -375,24 +396,59 @@ public strictfp class RobotPlayer {
         }
 
             rc.setIndicatorString(statusString + " ...wtf after report island ");
-        /*
+
         //look for command from communication array
         //  execute command, might just be adding island or well to known list.
         List<RobotRequest> requests = scoutingRadio.readScoutRequest();
         if(!requests.isEmpty()){
-            RobotRequest acceptedRequest = requests.get(0);
-            scoutingRadio.sendScoutAccept( acceptedRequest );
-            MapLocation cmdTarget = new MapLocation(acceptedRequest.location.x, acceptedRequest.location.y);
-            statusString.append("Heard Radio Call to ("+cmdTarget.x+","+cmdTarget.y+") ");
-            //todo maybe a move request
-            //move to location
-            int distanceToXY = rc.getLocation().distanceSquaredTo(cmdTarget);
-            if (distanceToXY > 10 && rc.isMovementReady()) {
-                Direction dir = getDirectionToLocation(rc, cmdTarget);
-                if (rc.canMove(dir)){
-                    rc.move(dir);
+            for(RobotRequest request : requests){
+                int msgType = request.getMetadata()[0]; //we have 4 bits, so 16 options here
+                switch (msgType){
+                    case 0: // FOUND AN ISLAND! Go here scurvy dog!
+                        //deliver an anchor here
+                        //Launcher version: go to this if you are a launcher
+                        MapLocation cmdLocation = request.location;
+                        int cmd = request.getMetadata()[1];
+                        //if cmd == 0, regular anchor
+                        //if cmd == 1, accelerating anchor
+
+                        if (cmd == 0) {
+                            //get regular anchor
+                              //there should be one waiting at hq and we should already have it on us
+                            if (rc.getAnchor() != null){
+                                //set deliver state
+                                if (!knownIslandLocations.contains(cmdLocation)) {
+                                    knownIslandLocations.add(cmdLocation);
+                                }
+                                //reply to message
+                                scoutingRadio.sendScoutAccept(request);
+                            }
+                        }
+                        break;
+                    case 1: //launcher "go mine here"
+                        break;
+                    case 2: //launcher "make elixer here"
+                        break;
+                    case 3:
+                        break;
+                    //and on it goes to 15 (16 total)
+                    default:
+                        break;
                 }
             }
+        //     RobotRequest acceptedRequest = requests.get(0);
+        //     scoutingRadio.sendScoutAccept( acceptedRequest );
+        //     MapLocation cmdTarget = new MapLocation(acceptedRequest.location.x, acceptedRequest.location.y);
+        //     statusString.append("Heard Radio Call to ("+cmdTarget.x+","+cmdTarget.y+") ");
+        //     //todo maybe a move request
+        //     //move to location
+        //     int distanceToXY = rc.getLocation().distanceSquaredTo(cmdTarget);
+        //     if (distanceToXY > 10 && rc.isMovementReady()) {
+        //         Direction dir = getDirectionToLocation(rc, cmdTarget);
+        //         if (rc.canMove(dir)){
+        //             rc.move(dir);
+        //         }
+        //     }
         }
         //*/
         //mining wells
