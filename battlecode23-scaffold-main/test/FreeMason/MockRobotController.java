@@ -8,7 +8,6 @@ public class MockRobotController implements RobotController
 
 
     public int[] SHARED_ARRAY = new int[64];
-
     {
         for(int i = 0 ; i<SHARED_ARRAY.length ; i++){
             SHARED_ARRAY[i] = 0;
@@ -47,8 +46,8 @@ public class MockRobotController implements RobotController
 
     @Override
     public Team getTeam() {
-        return null;
-    }
+        return Team.B;
+    } //use B so that serialization has a non-zero value.
 
     @Override
     public RobotType getType() {

@@ -90,7 +90,6 @@ public class RadioTest {
                 (GameConstants.MAX_SHARED_ARRAY_VALUE,
                 GameConstants.MAP_MAX_WIDTH,
                 GameConstants.MAP_MAX_HEIGHT));
-
     }
 
 
@@ -105,5 +104,13 @@ public class RadioTest {
         assertEquals(x, unpacked.x);
         assertEquals(y, unpacked.y);
 
+    }
+
+    @Test
+    public void testQuadBytePacking(){
+        int[] test = {1,2,3,4};
+        int comp = RobotRadio.packCompsiteQuad(test);
+        int[] testOut = RobotRadio.unpackCompsiteQuad(comp);
+        assertArrayEquals(test,testOut);
     }
 }

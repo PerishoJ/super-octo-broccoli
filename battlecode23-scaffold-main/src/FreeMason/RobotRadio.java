@@ -130,11 +130,36 @@ public class RobotRadio {
     static MapLocation unpackMapLocation( int value ){
         int[] mapCoords = unpackCompsite(value);
         return new MapLocation(mapCoords[0], mapCoords[1]);
-
     }
 
     static int packMapLocation(MapLocation location){
         return packCompsite(location.x,location.y);
+    }
+
+    public static int[] unpackCompsiteQuad(int value){
+        int bits_per_array_int = (int)(log(GameConstants.MAX_SHARED_ARRAY_VALUE+1)/log(2));
+        int second_value_starting_bit_position = bits_per_array_int / 4 ;
+        int bitMask = (int)Math.pow( 2 , second_value_starting_bit_position ) - 1;
+        int[] composite = new int[4];
+        for(int i = 0; i< 4; i++){
+            //read the first 4 bits
+            composite[i] = bitMask & value;
+            //knock off those first four bits
+            value = value >> second_value_starting_bit_position;
+        }
+        return composite;
+    }
+    public static int packCompsiteQuad( int[] quads){
+        int bits_per_array_int = (int)(log(GameConstants.MAX_SHARED_ARRAY_VALUE+1)/log(2));
+        int y_mask = (1 << (bits_per_array_int / 4)) - 1; // all ones for first 4 bits , 1111
+        int composite = 0;
+        for(int i = 3 ; i>=0 ; i--){
+            //make sure only 4 bits are added to the binary
+            int maskedInput = ( y_mask & quads[i]);
+            //move left 4, put the 4 new data bits on the front
+            composite =  ( composite << (bits_per_array_int/4) ) | ( maskedInput ) ; //put the bits together into the same int.
+        }
+        return composite;
     }
 
 

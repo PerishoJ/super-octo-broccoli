@@ -177,11 +177,13 @@ public strictfp class RobotPlayer {
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runHeadquarters(RobotController rc) throws GameActionException {
+
         StringBuilder statusString = new StringBuilder();
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
         MapLocation newLoc = rc.getLocation().add(dir);
         if (turnCount == 1) {
+            for(int i = 0 ; i < 64 ; i++){rc.writeSharedArray(i,0);} //zero out the shared array.
             // Build an anchor first thing.
             HqUtils.buildAnchorSTD(rc);
 
