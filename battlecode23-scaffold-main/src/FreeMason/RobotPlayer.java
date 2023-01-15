@@ -142,12 +142,12 @@ public strictfp class RobotPlayer {
      * decide on weather to make more carriers based on how many are around you
      * return carrier id
      */
-    static int carrierBuilder (RobotController rc, StringBuilder statusString) throws GameActionException {
+    static void carrierBuilder (RobotController rc, StringBuilder statusString) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         int carrierCount = countBotsAroundLocation(rc, myLocation, RobotType.CARRIER, rc.getTeam());
         if (carrierCount > 2) {
             statusString.append("TooCrowdedToBuildCarrier");
-            return 0;
+            //return 0;
         }
         else {
             //find a square to build a carrier on
@@ -167,8 +167,8 @@ public strictfp class RobotPlayer {
             }
             HqUtils.buildCarrier(rc, buildLocation);
             //find id of built carrier
-            RobotInfo newBuildInfo = rc.senseRobotAtLocation(buildLocation);
-            return newBuildInfo.ID;
+            //RobotInfo newBuildInfo = rc.senseRobotAtLocation(buildLocation);
+            //return newBuildInfo.ID; //this was causing exception null pointer
         }
     }//end carrierBuilder
 
@@ -199,7 +199,7 @@ public strictfp class RobotPlayer {
             rc.setIndicatorString("Trying to build a carrier first");
             HqUtils.buildLauncher(rc, newLoc);
         }
-        else{
+        if (turnCount < 50){
             // If we don't have an anchor, build one!
             //if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
             //        rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
@@ -207,14 +207,22 @@ public strictfp class RobotPlayer {
             //    HqUtils.buildAnchorSTD(rc);
             //}
             if (rng.nextInt(10) == 1) {
-                if (rng.nextBoolean()) {
+                //if (rng.nextBoolean()) {
                     // Let's try to build a carrier.
                     rc.setIndicatorString("Trying to build a carrier");
                     carrierBuilder(rc, statusString);
-                } else {
-                    // Let's try to build a launcher.
-                    rc.setIndicatorString("Trying to build a launcher");
-                    HqUtils.buildLauncher(rc, newLoc);
+                //}
+            }
+            else if (rng.nextInt(3) == 1){
+                // Let's try to build a launcher.
+                rc.setIndicatorString("Trying to build a launcher");
+                HqUtils.buildLauncher(rc, newLoc);
+            }
+            else{
+                if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
+                        rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
+                        rc.getResourceAmount(ResourceType.MANA) > 200) {
+                    HqUtils.buildAnchorSTD(rc);
                 }
             }
         }
@@ -376,7 +384,10 @@ public strictfp class RobotPlayer {
             //move to location
             int distanceToXY = rc.getLocation().distanceSquaredTo(cmdTarget);
             if (distanceToXY > 10 && rc.isMovementReady()) {
-                rc.move(getDirectionToLocation(rc, cmdTarget));
+                Direction dir = getDirectionToLocation(rc, cmdTarget);
+                if (rc.canMove(dir)){
+                    rc.move(dir);
+                }
             }
         }
         //*/
@@ -434,15 +445,11 @@ public strictfp class RobotPlayer {
                 }
                 wellLoop = wellLoop - 1;
             }
-
-
             statusString.append("walk2Well. ");
             Direction dir = getDirectionToLocation(rc, wellLocation);
             if (rc.canMove(dir)) {
                 rc.move(dir);
             }
-
-
         }
         else {
             // else walk away from hq
@@ -623,7 +630,10 @@ public strictfp class RobotPlayer {
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             if (distanceToHQ > 2 && rc.isMovementReady()) {
                 statusString.append("DepoWalk. ");
-                rc.move(  getDirectionToLocation(rc , hqLocation) );
+                Direction dir = getDirectionToLocation(rc , hqLocation);
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
+                }
             }
         }
 
@@ -786,16 +796,21 @@ public strictfp class RobotPlayer {
      * if the path is blocked, rotate right
      */
     private static Direction getDirectionToLocation(RobotController rc , MapLocation location ) throws GameActionException {
-        Direction dir = rc.getLocation().directionTo(location);
-        //find a direction we can actually move to
-        for(int dirs = 0  ; dirs <= directions.length ; dirs ++){
-            if(rc.canMove(dir)){
-                break;
-            } else {
-                dir = dir.rotateRight();
+        if (location != null) {
+            Direction dir = rc.getLocation().directionTo(location);
+            //find a direction we can actually move to
+            for (int dirs = 0; dirs < directions.length - 1; dirs++) {
+                if (rc.canMove(dir)) {
+                    break;
+                } else {
+                    dir = dir.rotateRight();
+                }
             }
+            return dir;
         }
-        return dir;
+        else{
+            return Direction.CENTER;
+        }
     }
 
     /**
