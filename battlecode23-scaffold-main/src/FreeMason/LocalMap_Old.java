@@ -12,7 +12,7 @@ import java.util.*;
  * TODO figure out a clever way to record modifiers w/ only 3 bits ( 0 - 7 )
  *
  */
-public class LocalMap {
+public class LocalMap_Old {
 
     public static final int TEMPORAL_VALUE_NEUTRAL = 3;
     /**
@@ -87,6 +87,7 @@ public class LocalMap {
             temporalValue = serialized; //no more space left! the int is done.
         }
 
+
         public int serialize(){
             int ser = 0;
             ser = temporalValue;
@@ -144,7 +145,7 @@ public class LocalMap {
     }
     static Map<MapLocation,MapCell> gameMap;
 
-    public LocalMap(RobotController rc){
+    public LocalMap_Old(RobotController rc){
         //INCREDIBLY bytecode heavy...but super fast later.
         //Costs probably a couple MiB memory/unit. So if we have 1000 units, the game is gonna drag hard.
         gameMap = new HashMap<>(rc.getMapWidth() * rc.getMapHeight());
@@ -184,6 +185,7 @@ public class LocalMap {
             gameMap.put( cellAndLoc.location, cellAndLoc.cell );
         }
     }
+
 
     /**
      * Used to update a map given info from the Robot scanning.

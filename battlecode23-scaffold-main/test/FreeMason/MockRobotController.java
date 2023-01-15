@@ -436,7 +436,7 @@ public class MockRobotController implements RobotController
 
     @Override
     public void writeSharedArray(int index, int value) throws GameActionException {
-        if(index<0 || index >= SHARED_ARRAY.length){ throw new GameActionException(GameActionExceptionType.OUT_OF_RANGE,"index out of rng");}
+        if(! canWriteSharedArray(index,value)){ throw new GameActionException(GameActionExceptionType.OUT_OF_RANGE,"index out of rng");}
         SHARED_ARRAY[index] = value;
     }
 

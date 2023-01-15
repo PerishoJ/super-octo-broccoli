@@ -87,7 +87,7 @@ public class RobotRequest {
     private int[] readMetaData(int metadataRaw1 , int metadataRaw2){
         int[] m1 = RobotRadio.unpackCompsite(metadataRaw1);
         int[] m2 = RobotRadio.unpackCompsite(metadataRaw2);
-        return combineInt(m1, m2);
+        return ArrayUtils.addAll(m1, m2);
     }
 
     /**
