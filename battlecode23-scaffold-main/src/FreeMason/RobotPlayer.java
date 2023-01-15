@@ -240,7 +240,7 @@ public strictfp class RobotPlayer {
      * test communications hq
      */
     static void hqlogic (RobotController rc, StringBuilder statusString) throws GameActionException {
-        if (turnCount == 3) {
+        if (turnCount == 5) {
             //make a carrier
             HqUtils.buildCarrier(rc, rc.getLocation().add(Direction.EAST));
             statusString.append("build carrier. ");
@@ -303,7 +303,7 @@ public strictfp class RobotPlayer {
         //depositing:
         //are we close to home? do home things
         int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
-        if (distanceToHq < 2) {
+        if (distanceToHq <= 2) {
             depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
             //picking up anchors:
             //if we know where to take an anchor, grab one from hq
@@ -359,7 +359,7 @@ public strictfp class RobotPlayer {
                     //add islandLocs to knownIslandLocations
                     for (MapLocation island : islandLocs){
                         if (!knownIslandLocations.contains(island)) {
-                            statusString.append("remIs(" + island + "). ");
+                            //statusString.append("remIs(" + island + "). ");
                             knownIslandLocations.add(island); //todo might need to pick cloest one to hq
                             newislandLocation = island;
                         }
