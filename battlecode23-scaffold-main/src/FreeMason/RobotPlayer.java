@@ -240,12 +240,15 @@ public strictfp class RobotPlayer {
      * test communications hq
      */
     static void hqlogic (RobotController rc, StringBuilder statusString) throws GameActionException {
-        if (turnCount == 2) {
+        if (turnCount == 3) {
             //make a carrier
             HqUtils.buildCarrier(rc, rc.getLocation().add(Direction.EAST));
+            statusString.append("build carrier. ");
         }
         if (turnCount == 4) {
             //make anchor
+            HqUtils.buildAnchorSTD(rc);
+            statusString.append("sending reqest: (20,23), 1");
             //send a message for a carrier to take anchor to a known island. run on default map
             scoutingRadio.sendScoutRequest(new MapLocation(20, 23), 1);
         }
@@ -416,10 +419,14 @@ public strictfp class RobotPlayer {
                             //get regular anchor
                               //there should be one waiting at hq and we should already have it on us
                             if (rc.getAnchor() != null){
+                                statusString.append("Delivering Anchor, answering call. ");
                                 //set deliver state
-                                if (!knownIslandLocations.contains(cmdLocation)) {
-                                    knownIslandLocations.add(cmdLocation);
+                                Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
+                                temp.add(cmdLocation);
+                                for (MapLocation oldWells : knownIslandLocations) {
+                                    temp.add(oldWells);
                                 }
+                                knownIslandLocations = temp;
                                 //reply to message
                                 scoutingRadio.sendScoutAccept(request);
                             }
