@@ -40,7 +40,7 @@ public class SimpleMapRadio {
         }
     }
 
-    public List<SimpleMap.SimplePckg> readAndCacheEmpty(SimpleMap map) throws GameActionException {
+    public List<SimpleMap.SimplePckg> readAndCacheEmpty() throws GameActionException {
         emptyArraySlots = new LinkedList<>();
         List<SimpleMap.SimplePckg> mapDiff = new ArrayList<>(32);
         for(int i = 0; i < MAP_VOLUME_SIZE; i++){

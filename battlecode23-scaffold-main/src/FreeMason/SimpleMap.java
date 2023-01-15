@@ -3,12 +3,14 @@ package FreeMason;
 import battlecode.common.MapLocation;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 public class SimpleMap {
 
     public enum BasicInfo {
-        NEUTRAL,OURS,OURS_ACCEL,THEIRS,THEIRS_ACCEL,WELL_AD,WELL_MANA,WELL_ELIXER;
+        ISLD_NEUTRAL,ISLD_OURS,ISLD_OURS_ACCEL,ISLD_THEIRS,ISLD_THEIRS_ACCEL,WELL_AD,WELL_MANA,WELL_ELIXER,OUR_HQ,THEIR_HQ,
+        INVALID_BLOCK;// used for SharedArray plumbing
     }
 
     public Map<MapLocation, BasicInfo> map = new TreeMap<>(); //maybe should be hashmap, but fuck it
@@ -18,7 +20,7 @@ public class SimpleMap {
         ser = location.x;
         ser = ser << 6;
         ser = location.y | ser;
-        ser = ser << 6;
+        ser = ser << 4;
         ser = ser | info.ordinal();
         return ser;
     }
@@ -36,12 +38,29 @@ public class SimpleMap {
         }
 
         public SimplePckg (int serializedPair){
-            int infoOrdinal = (0b111 & serializedPair);
-            BasicInfo info = BasicInfo.values()[infoOrdinal];
-            serializedPair = serializedPair >> 3; //next
-            int y = (0b111111 * serializedPair);
+            int infoOrdinal = (0b1111 & serializedPair);
+            if(infoOrdinal < BasicInfo.values().length){
+                info = BasicInfo.values()[infoOrdinal];
+            } else {
+                info = BasicInfo.INVALID_BLOCK;
+            }serializedPair = serializedPair >> 4; //next
+            int y = (0b111111 & serializedPair);
             serializedPair = serializedPair >> 6;
-            int x = (0b111111 * serializedPair);
+            int x = (0b111111 & serializedPair);
+            location = new MapLocation(x,y);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            SimplePckg that = (SimplePckg) o;
+            return info == that.info && Objects.equals(location, that.location);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(info, location);
         }
     }
     public static SimplePckg deserialize(int serializedPair){
