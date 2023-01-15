@@ -7,6 +7,19 @@ public class MockRobotController implements RobotController
 {
 
 
+    @Override
+    public MapLocation[] senseNearbyCloudLocations ( ) {return new MapLocation[0];}
+
+    @Override
+    public MapLocation[] senseNearbyCloudLocations(int radiusSquared) throws GameActionException {
+        return new MapLocation[0];
+    }
+
+    @Override
+    public MapLocation[] senseNearbyCloudLocations(MapLocation center, int radiusSquared) throws GameActionException {
+        return new MapLocation[0];
+    }
+
     public int[] SHARED_ARRAY = new int[64];
     {
         for(int i = 0 ; i<SHARED_ARRAY.length ; i++){
@@ -85,7 +98,7 @@ public class MockRobotController implements RobotController
     }
 
     @Override
-    public boolean onTheMap(MapLocation loc) throws GameActionException {
+    public boolean onTheMap(MapLocation loc) {
         return false;
     }
 
@@ -205,6 +218,11 @@ public class MockRobotController implements RobotController
     }
 
     @Override
+    public boolean senseCloud(MapLocation loc) throws GameActionException {
+        return false;
+    }
+
+    @Override
     public WellInfo senseWell(MapLocation loc) throws GameActionException {
         return null;
     }
@@ -238,6 +256,7 @@ public class MockRobotController implements RobotController
     public WellInfo[] senseNearbyWells(MapLocation center, int radiusSquared, ResourceType resourceType) throws GameActionException {
         return new WellInfo[0];
     }
+
 
     @Override
     public MapInfo senseMapInfo(MapLocation loc) throws GameActionException {

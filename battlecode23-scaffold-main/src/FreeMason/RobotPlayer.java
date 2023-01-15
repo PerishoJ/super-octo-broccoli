@@ -180,6 +180,7 @@ public strictfp class RobotPlayer {
 
         StringBuilder statusString = new StringBuilder();
         statusString.append(turnCount + ":");
+        //System.out.println("turn: " + turnCount);
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
         MapLocation newLoc = rc.getLocation().add(dir);
@@ -305,10 +306,13 @@ public strictfp class RobotPlayer {
         WellInfo[] visibleWells = rc.senseNearbyWells();
         if (visibleWells.length > 0) {
             for (WellInfo well : visibleWells) {
-                if (!knownWellLocations.contains(well.getMapLocation())) {
-                    MapLocation thisWell = well.getMapLocation();
-                    statusString.append("saveWell"+ well.getResourceType() + "("+ thisWell + "). ");
-                    knownWellLocations.add(thisWell);
+                MapLocation thisWellLocation = well.getMapLocation();
+                if(thisWellLocation != null) {
+                    if (!knownWellLocations.contains(thisWellLocation)) {
+                        statusString.append("saveWell" + well.getResourceType() + "(" + thisWellLocation + "). ");
+                        //System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
+                        knownWellLocations.add(thisWellLocation);
+                    }
                 }
             }
         }
@@ -425,30 +429,45 @@ public strictfp class RobotPlayer {
         // if well
         //  collect from well, return to hq, deposit and tell hq about it
         // If we can see a well, move towards it
+
+        //System.out.println("if well\n  knownWellLocations: " + knownWellLocations.size());
         if (!knownWellLocations.isEmpty()) {
             //todo pick closest well, best well?
             //decide what well to go to based on wellNumber used last time. move on from crowded wells
             //if well location is full, try next weld location
+
+            //poor implementation
             int wellLoop = wellNumber;
+            //System.out.println("wellNumber: " + wellNumber);
             for (MapLocation well : knownWellLocations) {
                 if (wellLoop == 0){
                     //if well is crowded, go to next well
+                    //System.out.println("  well Loop == 0, ");
                     if (countBotsAroundLocation(rc, well, RobotType.CARRIER, rc.getTeam()) >= 3){
                         //add one to wellNumber (go to next well)
+                        //System.out.println("add to well number");
                         wellNumber++;
+                        wellLoop++;
                     }
                     else{
                         //use this well number
+                        //System.out.println("use this well: " + wellNumber);
                         wellLocation = well;
                     }
                     break;
                 }
                 wellLoop = wellLoop - 1;
             }
-            statusString.append("walk2Well. ");
             Direction dir = getDirectionToLocation(rc, wellLocation);
-            if (rc.canMove(dir)) {
-                rc.move(dir);
+
+            statusString.append("2Well:" + wellLocation + "," + dir + ". ");
+            if (dir != Direction.CENTER) {
+                if (rc.canMove(dir)) {
+                    rc.move(dir);
+                }
+            }else {
+                // else walk away from hq
+                randomWalk(rc, statusString);
             }
         }
         else {
@@ -904,6 +923,83 @@ public strictfp class RobotPlayer {
         StringBuilder statusString = new StringBuilder();
         // Try to attack someone and chase them
         launcherAttack(rc, statusString);
+
+
+        //looking for islands/wells:
+        //add wells in sight
+        WellInfo[] visibleWells = rc.senseNearbyWells();
+        if (visibleWells.length > 0) {
+            for (WellInfo well : visibleWells) {
+                MapLocation thisWellLocation = well.getMapLocation();
+                if(thisWellLocation != null) {
+                    if (!knownWellLocations.contains(thisWellLocation)) {
+                        statusString.append("saveWell" + well.getResourceType() + "(" + thisWellLocation + "). ");
+                        //System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
+                        knownWellLocations.add(thisWellLocation);
+                    }
+                }
+            }
+        }
+
+        //islands by team
+        int[] islands = rc.senseNearbyIslands();
+        Set<MapLocation> islandLocs = new HashSet<>(); //neutral islands = enum value of 2
+        Set<MapLocation> ourIslandLocs = new HashSet<>();
+        Set<MapLocation> enemyIslandLocs = new HashSet<>();
+        for (int id : islands) {
+            Team islandteam = rc.senseTeamOccupyingIsland(id);
+            if (islandteam == rc.getTeam()){
+                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+            }
+            else if (islandteam != rc.getTeam()){
+                if ( islandteam == Team.NEUTRAL ) { //neutral
+                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                    islandLocs.addAll(Arrays.asList(thisIslandLocs));
+                    //add islandLocs to knownIslandLocations
+                    for (MapLocation island : islandLocs){
+                        if (!knownIslandLocations.contains(island)) {
+                            statusString.append("remIs(" + island + "). ");
+                            knownIslandLocations.add(island); //todo might need to pick cloest one to hq
+                            newislandLocation = island;
+                        }
+                    }
+                }
+                else { //enemy
+                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                    enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                    //todo add these too?
+                    statusString.append("seeEnemyIsland. ");
+                }
+            }
+        }
+
+        //report island we can see
+        //if unclaimed island - report this island
+        if (islandLocation != null) { //todo maybe follow the one we know about first?
+            //remember island exists
+            islandLocation = newislandLocation;
+            //todo if we see an amplifier nearby, just say it
+            //else return to hq to talk about it, (request anchor for island)
+            statusString.append("repI("+ islandLocation +"). ");
+            int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
+            //todo maybe a move request that we can decide on performing later?
+            if (distanceToHQ > 10 && rc.isMovementReady()) {
+                Direction dir = getDirectionToLocation(rc , hqLocation);
+                if (rc.canMove(dir)) {
+                    statusString.append("repMove. ");
+                    rc.move(dir);
+                }
+            }
+            if (distanceToHQ <= 9 ){
+                //todo transmit about island location
+                statusString.append("txIs. ");
+                newislandLocation = null;
+            }
+        }
+
+        rc.setIndicatorString(statusString + " ...wtf after report island ");
+
 
         randomWalk(rc, statusString);
 
