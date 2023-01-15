@@ -1,10 +1,12 @@
 package FreeMason;
 
 import battlecode.common.*;
-import junit.framework.TestCase;
 import org.junit.Test;
 
-public class LocalMapTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
+public class LocalMapTest {
 
     @Test
     public void testSerializeMapCell() throws GameActionException {
@@ -25,13 +27,18 @@ public class LocalMapTest extends TestCase {
         int serialized = uut.serialize();
         LocalMap.MapCell deserlzCell = new LocalMap.MapCell(serialized);
         //THEN
-        assertEquals(uut.resourceType , deserlzCell.resourceType);
-        assertEquals(uut.occupantTeam , deserlzCell.occupantTeam);
-        assertEquals(uut.occupantType , deserlzCell.occupantType);
-        assertEquals(uut.current , deserlzCell.current);
-        assertEquals(uut.isCloudy,deserlzCell.isCloudy);
-        assertEquals(uut.isPassable , deserlzCell.isPassable);
+        assertEquals(uut.resourceType  , deserlzCell.resourceType);
+        assertEquals(uut.occupantTeam  , deserlzCell.occupantTeam);
+        assertEquals(uut.occupantType  , deserlzCell.occupantType);
+        assertEquals(uut.current       , deserlzCell.current);
+        assertEquals(uut.isCloudy      , deserlzCell.isCloudy);
+        assertEquals(uut.isPassable    , deserlzCell.isPassable);
         assertEquals(uut.temporalValue , deserlzCell.temporalValue);
     }
 
+    @Test
+    public void testSenseFromBlankSpaces(){
+        LocalMap.MapCell deserlzCell = new LocalMap.MapCell(0);
+        assertFalse(deserlzCell.isValidMessage());
+    }
 }

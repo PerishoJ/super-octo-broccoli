@@ -93,6 +93,7 @@ public class RadioTest {
     }
 
 
+    //This code is never used. LOL!
     @Test
     public void bytePackingMapLocation(){
         int x = 10;
@@ -113,4 +114,6 @@ public class RadioTest {
         int[] testOut = RobotRadio.unpackCompsiteQuad(comp);
         assertArrayEquals(test,testOut);
     }
+
+
 }

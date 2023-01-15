@@ -2,10 +2,7 @@ package FreeMason;
 
 import battlecode.common.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
+import java.util.*;
 
 
 /**
@@ -30,7 +27,10 @@ public class LocalMap {
         public static final int OCCUPANT_TEAM_MASK = (int) (Math.pow(2, 2) - 1);//3 bits necessary for bot type
         public static final int ROBOT_TYPE_ORDIANL_MASK = (int) (Math.pow(2, 3) - 1);
         public static final int CURRENT_DIRECTION_ORD_MASK = (int) (Math.pow(2, 4) - 1);
-        public int temporalValue = 3; //TODO records time dialation...somehow. 3 = normal. 0 = slow. 7 = fast
+        public static final int NULL_TYPE_ORDINAL = 7;
+        public static final int INVALID_MESSAGE_FLAG = 0;
+        public int temporalValue = 3; //TODO Time dialation. 0=INVALID MESSAGE, 4 = normal. 1 = slow. 7 = fast
+        //We're going to throw a VERY SPECIAL flag onto the temporal value...value 0 means the whole block is invalid
         public boolean isCloudy = false;
         public boolean isPassable = true;
         MapLocation location;
@@ -46,14 +46,14 @@ public class LocalMap {
         public MapCell(){}
         public MapCell( MapLocation location , RobotType occupantType, Team occupantTeam , ResourceType resourceType , Direction current , boolean isPassable , boolean isCloudy , int temporalValue) {
             this.location = location;
-            this.resourceType = resourceType;
+            this.resourceType = resourceType==null?ResourceType.NO_RESOURCE : resourceType;
             this.occupantType = occupantType;
             this.occupantTeam = occupantTeam;
-            this.current = current;
+            this.current = current==null? Direction.CENTER : current ;
             turnExplored = RobotPlayer.turnCount;
             this.isCloudy = isCloudy;
             this.isPassable = isPassable;
-            this.temporalValue = temporalValue;
+            this.temporalValue = clampTemporalValue(temporalValue);
         }
 
         public MapCell(int serialized){
@@ -69,7 +69,12 @@ public class LocalMap {
             serialized = serialized >>2;
             //get robot type
             int typeOrdinal = serialized & ROBOT_TYPE_ORDIANL_MASK;
-            occupantType = RobotType.values()[typeOrdinal];
+            if(typeOrdinal == NULL_TYPE_ORDINAL){
+                occupantType = null;
+                occupantTeam = Team.NEUTRAL;
+            } else {
+                occupantType = RobotType.values()[typeOrdinal];
+            }
             serialized = serialized >> 3;
             //get current direction
             int currentDirectionOrdianl = serialized & CURRENT_DIRECTION_ORD_MASK;
@@ -84,7 +89,7 @@ public class LocalMap {
 
         public int serialize(){
             int ser = 0;
-            ser = temporalValue; //out of space !!!
+            ser = temporalValue;
             ser = ser << 1;
             ser = ser | (isCloudy?1:0);
             ser = ser << 1;
@@ -92,10 +97,16 @@ public class LocalMap {
             ser = ser << 4 ;
             ser = ser | current.ordinal(); //4 bits
             ser = ser << 3;
-            ser = ser | occupantType.ordinal(); //3 bits
 
-            ser = ser << 2;
-            ser = ser | occupantTeam.ordinal(); //2 bits
+            if(occupantType == null || occupantTeam == null){
+                ser = ser | NULL_TYPE_ORDINAL ; //highest number a 3 bit digit can record
+                ser = ser << 2;
+                ser = ser | Team.NEUTRAL.ordinal(); //2 bits
+            } else {
+                ser = ser | occupantType.ordinal(); //3 bits
+                ser = ser << 2;
+                ser = ser | occupantTeam.ordinal(); //2 bits
+            }
 
             ser  = ser << 2 ;
             ser = ser | resourceType.ordinal();//last on the stack
@@ -110,8 +121,27 @@ public class LocalMap {
         public boolean isStale(){
             return (turnExplored+turnsTillStale<RobotPlayer.turnCount);
         }
+
+        /**
+         * We ran out of bits, so we use the temporal values to ensure the
+         * message is good before reading.
+         * An HQ should zero out the array at startup, so this will always read invalid until we init it.
+         * @return
+         */
+        public boolean isValidMessage(){
+            return temporalValue != INVALID_MESSAGE_FLAG;
+        }
+
+        public static boolean isValidMessage(int packedMessage){
+            int tmprlValue = packedMessage >> 13 ; //only need last 3 bits for the Temporal Value
+            return tmprlValue != INVALID_MESSAGE_FLAG;
+        }
     }
 
+    static class MapCellAndLoc{
+        MapCell cell;
+        MapLocation location;
+    }
     static Map<MapLocation,MapCell> gameMap;
 
     public LocalMap(RobotController rc){
@@ -122,22 +152,52 @@ public class LocalMap {
         ourTeam = rc.getTeam();
     }
 
-    public MapCell getLocation(MapLocation location){
+    public MapCell getCell(MapLocation location){
         return gameMap.get(location);
     };
 
-    public MapCell getLocation(int x,int y){
-        return getLocation(new MapLocation(x,y));
+    public MapCell getCell(int x,int y){
+        return gameMap.get(new MapLocation(x,y));
     }
 
-    //charting is kinda expensive...we'll need to throttle this
+    /**
+     * Used to get info that is useful for sending to the SharedArray
+     * @param x
+     * @param y
+     * @return
+     */
+    public MapCellAndLoc getCellAndLoc(int x,int y){
+        MapLocation location = new MapLocation(x,y);
+        MapCellAndLoc mapCellAndLoc = new MapCellAndLoc();
+        mapCellAndLoc.location = location;
+        mapCellAndLoc.cell = getCell(location);
+        return mapCellAndLoc;
+    }
+    /**
+     * Used to pull updates from the SharedArray
+     * Specifically the function:
+     * MappingRadio.readBlock( blockNumber )
+     * @param mapPatch
+     */
+    public void updateMap(List<MapCellAndLoc> mapPatch){
+        for(MapCellAndLoc cellAndLoc : mapPatch){
+            gameMap.put( cellAndLoc.location, cellAndLoc.cell );
+        }
+    }
+
+    /**
+     * Used to update a map given info from the Robot scanning.
+     * Can also be used to provide info to the
+     * @param bot
+     * @param resource
+     * @param info
+     * @throws GameActionException
+     */
     public void chartLocation ( RobotInfo bot , ResourceType resource , MapInfo info) throws GameActionException {
-        int temporalValue = TEMPORAL_VALUE_NEUTRAL;
         //TODO add temporal values ... once we actually start using them. It adds a good chunk of bytecode
+        int temporalValue = TEMPORAL_VALUE_NEUTRAL;
         // temporalValue = temporalValue + info.getNumBoosts(ourTeam) - info.getNumDestabilizers(ourTeam);
-        //clamp within 3 bits range
-        temporalValue = temporalValue > 7 ? 7 : temporalValue;
-        temporalValue = temporalValue < 0 ? 0 : temporalValue;
+        temporalValue = clampTemporalValue(temporalValue);
         MapCell cell = new MapCell(
              info.getMapLocation(),
              bot.type,
@@ -148,6 +208,18 @@ public class LocalMap {
              info.hasCloud(),
              temporalValue
         );
+    }
+
+    /**
+     * keep the temporal value in range
+     *   1 <= Value <=  7
+     * @param tmplrVal
+     * @return
+     */
+    private static int clampTemporalValue(int tmplrVal){
+        tmplrVal = tmplrVal > 7 ? 7 : tmplrVal;
+        tmplrVal = tmplrVal < 1 ? 1 : tmplrVal;
+        return tmplrVal;
     }
 
 }
