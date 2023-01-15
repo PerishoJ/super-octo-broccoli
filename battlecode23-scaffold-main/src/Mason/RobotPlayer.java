@@ -273,7 +273,10 @@ public strictfp class RobotPlayer {
             //check if we are close enough to deposit resources to hq and if not, try moving closer.
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             if (distanceToHQ > 2 && rc.isMovementReady()) {
-                rc.move(  getDirectionToLocation(rc , hqLocation) );
+                Direction dir = getDirectionToLocation(rc, hqLocation);
+                if (rc.canMove(dir)){
+                    rc.move(dir);
+                }
             }
         }
 
