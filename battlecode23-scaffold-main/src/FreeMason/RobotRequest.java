@@ -76,10 +76,18 @@ public class RobotRequest {
         this.commArrayOffset = commArrayOffset;
     }
 
+    public static int[] combineInt(int[] a, int[] b){
+        int length = a.length + b.length;
+        int[] result = new int[length];
+        System.arraycopy(a, 0, result, 0, a.length);
+        System.arraycopy(b, 0, result, a.length, b.length);
+        return result;
+    }
+
     private int[] readMetaData(int metadataRaw1 , int metadataRaw2){
         int[] m1 = RobotRadio.unpackCompsite(metadataRaw1);
         int[] m2 = RobotRadio.unpackCompsite(metadataRaw2);
-        return ArrayUtils.addAll(m1, m2);
+        return combineInt(m1, m2);
     }
 
     /**
