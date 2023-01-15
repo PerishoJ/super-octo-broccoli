@@ -4,6 +4,7 @@ import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -79,7 +80,10 @@ public class RobotRequest {
     private int[] readMetaData(int metadataRaw1 , int metadataRaw2){
         int[] m1 = RobotRadio.unpackCompsite(metadataRaw1);
         int[] m2 = RobotRadio.unpackCompsite(metadataRaw2);
-        return ArrayUtils.addAll(m1, m2);
+        int[] retArray = new int[4];
+        System.arraycopy(m1,0,retArray,0,2);
+        System.arraycopy(m2,0,retArray,2,2);
+        return retArray;
     }
 
     /**

@@ -15,7 +15,7 @@ public class LocalMapTest {
         RobotType occupant = RobotType.LAUNCHER;
         Team occupantTeam = Team.B;
 
-        LocalMap.MapCell uut = new LocalMap.MapCell(location,
+        LocalMap_Old.MapCell uut = new LocalMap_Old.MapCell(location,
                 occupant,
                 occupantTeam,
                 ResourceType.ELIXIR,
@@ -25,7 +25,7 @@ public class LocalMapTest {
                 3);
         //WHEN
         int serialized = uut.serialize();
-        LocalMap.MapCell deserlzCell = new LocalMap.MapCell(serialized);
+        LocalMap_Old.MapCell deserlzCell = new LocalMap_Old.MapCell(serialized);
         //THEN
         assertEquals(uut.resourceType  , deserlzCell.resourceType);
         assertEquals(uut.occupantTeam  , deserlzCell.occupantTeam);
@@ -38,7 +38,7 @@ public class LocalMapTest {
 
     @Test
     public void testSenseFromBlankSpaces(){
-        LocalMap.MapCell deserlzCell = new LocalMap.MapCell(0);
+        LocalMap_Old.MapCell deserlzCell = new LocalMap_Old.MapCell(0);
         assertFalse(deserlzCell.isValidMessage());
     }
 }

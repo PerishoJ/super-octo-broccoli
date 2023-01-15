@@ -39,6 +39,15 @@ public class RobotRadio {
 
     public boolean sendScoutRequest(MapLocation location , int requestedBots) throws GameActionException {
         RobotRequest request = new RobotRequest(location, requestedBots );
+        return sendRequest(request);
+    }
+
+    public boolean sendRequest(MapLocation location , int requestedBots , int[] metadata) throws GameActionException {
+        RobotRequest request = new RobotRequest(location , metadata, requestedBots);
+        return sendRequest(request);
+    }
+
+    public boolean sendRequest(RobotRequest request) throws GameActionException {
         for(int i = 0; i< MAX_SCOUT_MSG_COUNT; i++){
             if(! request.canSendRequest(rc)){
                 request.incrementOffset();
@@ -48,7 +57,7 @@ public class RobotRadio {
         }
         if(request.canSendRequest(rc)) {
             request.writeRequest(rc);
-            rc.setIndicatorDot(location, YELLOW[0], YELLOW[1], YELLOW[2]);
+            rc.setIndicatorDot(request.location, YELLOW[0], YELLOW[1], YELLOW[2]);
             return true;
         } else {
             return false;

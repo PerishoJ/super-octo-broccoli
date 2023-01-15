@@ -373,8 +373,7 @@ public strictfp class RobotPlayer {
                 newislandLocation = null;
             }
         }
-
-            rc.setIndicatorString(statusString + " ...wtf after report island ");
+        rc.setIndicatorString(statusString + " ...wtf after report island ");
         /*
         //look for command from communication array
         //  execute command, might just be adding island or well to known list.
