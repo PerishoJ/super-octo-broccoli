@@ -21,6 +21,7 @@ public class HqController {
 
     int turnToClean = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS;
     public void run (RobotController rc, int turnCount) throws GameActionException {
+        String indicatorString = "";
         // hard clean of all commands every so often...because there'll be crap requests that nobody listens to clogging things up.
         // TODO This could be better...alwell
         if(turnCount % 32  == 1){
@@ -80,11 +81,13 @@ public class HqController {
         map.update(mapDIff);
 
 
+        indicatorString += "known wells: " + rscWells + ". ";
 
         // we need scouts ... if we have lots of money, we should make them
         if(turnCount == 2){
-            rc.canBuildRobot(RobotType.AMPLIFIER , rc.getLocation().translate(1,0));
-            rc.buildRobot(RobotType.AMPLIFIER , rc.getLocation().translate(1,0) );
+            if(rc.canBuildRobot(RobotType.AMPLIFIER , rc.getLocation().translate(1,0))) {
+                rc.buildRobot(RobotType.AMPLIFIER , rc.getLocation().translate(1,0) );
+            }
             int explorationPattern = AmplifierController.ExplorationPattern.TOTAL_RANDOM.ordinal();
             int[] metadata = {AMPLIFIER, explorationPattern ,0};
             robotRadio.sendRequest( new MapLocation(0,0) , 1, metadata);
@@ -101,7 +104,7 @@ public class HqController {
                 Yes? Let's defend our own
             (Explore) Do we know where anything is at? No? Scout that shit out
          */
-
+        rc.setIndicatorString(indicatorString);
     }
 
     private static boolean isDuplicate(List<RobotRequest> requests, SimpleMap.SimplePckg pckg) {

@@ -37,7 +37,7 @@ public strictfp class RobotPlayer {
     static int wellNumber = 0;
     static Set<MapLocation> knownWellLocations = new LinkedHashSet<MapLocation>();
     //remember island location
-    static MapLocation islandLocation = null;
+    static MapLocation reportIslandLocation = null;
     static MapLocation newislandLocation = null;
     static Set<MapLocation> knownIslandLocations = new LinkedHashSet<MapLocation>();
 
@@ -341,37 +341,37 @@ public strictfp class RobotPlayer {
             //todo Save other hq locations read from communications array
         }
 
-        rc.setIndicatorString(statusString + " ...wtf after save hq");
+        rc.setIndicatorString(statusString + " ...wtf in depositing");
 
         //depositing:
         //are we close to home? do home things
         depositing(rc, statusString);
 
         statusString.append("isl:" + knownIslandLocations.size() + ". ");// + "anchor: " + rc.getAnchor().toString() + ". ");
-        rc.setIndicatorString(statusString + " ...wtf after depositing");
+        rc.setIndicatorString(statusString + " ...wtf in Anchor Delivery");
 
         //delivering anchors:
         //deliver to first island in list
         anchorDelivery2(rc, knownIslandLocations, statusString); //todo might need to find cloest
 
-        rc.setIndicatorString(statusString + " ...wtf after delivering anchors");
+        rc.setIndicatorString(statusString + " ...wtf in lookingWells");
 
         //looking for islands/wells:
         //add wells in sight
         addVisibleWells(rc, statusString);
 
-        rc.setIndicatorString(statusString + " ...wtf after looking for wells");
+        rc.setIndicatorString(statusString + " ...wtf wtf in lookingIslands");
 
         //islands by team
         addVisibleIslands(rc, statusString);
 
-        rc.setIndicatorString(statusString + " ...wtf after islands by team");
+        rc.setIndicatorString(statusString + " ...wtf in reportIsland");
 
         //report island we can see
         //if unclaimed island - report this island
         reportIsland(rc, statusString);
 
-        rc.setIndicatorString(statusString + " ...wtf after report island ");
+        rc.setIndicatorString(statusString + " ...wtf in scoutingCommands ");
 
         //look for command from communication array
         //  execute command, might just be adding island or well to known list.
@@ -382,12 +382,12 @@ public strictfp class RobotPlayer {
         //mining wells
         // Try to gather from squares around us.
         mineWells(rc, statusString);
-        rc.setIndicatorString(statusString + " ...wtf after mining wells ");
+        rc.setIndicatorString(statusString + " ...wtf in depositToHq ");
 
         //if it is full of either resource, go home.
         depositToHQ(rc, statusString);
 
-        rc.setIndicatorString(statusString + " ...wtf after deposit to HQ ");
+        rc.setIndicatorString(statusString + " ...wtf in wellWalk ");
 
         // if well
         //  collect from well, return to hq, deposit and tell hq about it
@@ -399,12 +399,12 @@ public strictfp class RobotPlayer {
 
         //attack enemy if seen
 
-        rc.setIndicatorString(statusString + " ...wtf after if well ");
+        rc.setIndicatorString(statusString + " ...wtf in carrierAttack ");
 
-        carrierAttack(rc, statusString);
+        //carrierAttack(rc, statusString);
         statusString.append("NoOp");
         rc.setIndicatorString(statusString.toString());
-        if(true) { //rc.getAnchor() != null) {
+        if( rc.getAnchor() != null) {
             System.out.println(statusString.toString());
         }
     }//end runCarrier2
@@ -419,18 +419,38 @@ public strictfp class RobotPlayer {
     static void depositing (RobotController rc, StringBuilder statusString) throws GameActionException {
         int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
         //statusString.append("dist2hq:" + distanceToHq + ". ");
+        boolean hasOre = (rc.getResourceAmount(ResourceType.ADAMANTIUM) +
+                         rc.getResourceAmount(ResourceType.MANA) +
+                         rc.getResourceAmount(ResourceType.ELIXIR)  >= 1);
         if (distanceToHq <= 3) {
-            depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
-            //picking up anchors:
-            //if we know where to take an anchor, grab one from hq
-            //if (knownIslandLocations.size() > 0) {
-            //statusString.append("wantAnchor. ");
-            //if hq has an anchor, pick it up.
-            if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
-                statusString.append("pickupAnchor. ");
-                rc.takeAnchor(hqLocation, Anchor.STANDARD);
-            } else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
-                rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
+            if (hasOre) {
+                //deposit ore
+                if (rc.canTransferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA))) {
+                    //yes - deposit resources
+                    rc.transferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA));
+                    statusString.append("DepoMa. ");
+                } else if (rc.canTransferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM))) {
+                    //yes - deposit resources
+                    rc.transferResource(hqLocation, ResourceType.ADAMANTIUM, rc.getResourceAmount(ResourceType.ADAMANTIUM));
+                    statusString.append("DepoAd. ");
+                } else if (rc.canTransferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR))) {
+                    //yes - deposit resources
+                    rc.transferResource(hqLocation, ResourceType.ELIXIR, rc.getResourceAmount(ResourceType.ELIXIR));
+                    statusString.append("DepoEx. ");
+                }
+            }
+            else {
+                //picking up anchors:
+                //if we know where to take an anchor, grab one from hq
+                //if (knownIslandLocations.size() > 0) {
+                //statusString.append("wantAnchor. ");
+                //if hq has an anchor, pick it up.
+                if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
+                    statusString.append("pickupAnchor. ");
+                    rc.takeAnchor(hqLocation, Anchor.STANDARD);
+                } else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
+                    rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
+                }
             }
             //}
         }
@@ -505,14 +525,16 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     static void reportIsland(RobotController rc, StringBuilder statusString) throws GameActionException {
-        if (islandLocation != null) { //todo maybe follow the one we know about first?
-            //remember island exists
-            islandLocation = newislandLocation;
+        if(reportIslandLocation == null) {
+            reportIslandLocation = newislandLocation;
+        }
+        if (reportIslandLocation != null) { //todo maybe follow the one we know about first?
             //todo if we see an amplifier nearby, just say it
             //else return to hq to talk about it, (request anchor for island)
-            statusString.append("repI("+ islandLocation +"). ");
+            statusString.append("repI("+ reportIslandLocation +"). ");
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             //todo maybe a move request that we can decide on performing later?
+            /* //try not moving back to base... we will eventually get there haha
             if (distanceToHQ > 10 && rc.isMovementReady()) {
                 Direction dir = getDirectionToLocation(rc , hqLocation);
                 if (rc.canMove(dir)) {
@@ -520,10 +542,11 @@ public strictfp class RobotPlayer {
                     rc.move(dir);
                 }
             }
+            */
             if (distanceToHQ <= 9 ){
                 //todo transmit about island location
                 statusString.append("txIs. ");
-                newislandLocation = null;
+                reportIslandLocation = null;
             }
         }
     }
@@ -535,51 +558,71 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     static void scoutingCommands(RobotController rc, StringBuilder statusString) throws GameActionException {
-        List<RobotRequest> requests = scoutingRadio.readScoutRequest();
-        boolean cmdAccepted = false;
-        if(!requests.isEmpty()){
-            for(RobotRequest request : requests){
-                if (cmdAccepted == false) {
-                    int msgType = request.getMetadata()[0]; //we have 4 bits, so 16 options here
-                    switch (msgType) {
-                        case 0: // FOUND AN ISLAND! Go here scurvy dog!
-                            //deliver an anchor here
-                            //Launcher version: go to this if you are a launcher
-                            MapLocation cmdLocation = request.location;
-                            int cmd = request.getMetadata()[1];
-                            //if cmd == 0, regular anchor
-                            //if cmd == 1, accelerating anchor
-
-                            if (cmd == 0) {
-                                //get regular anchor
-                                //there should be one waiting at hq and we should already have it on us
-                                if (rc.getAnchor() != null) {
-                                    statusString.append("AR. ");
-                                    //System.out.println("Delivering anchor to " + cmdLocation);
-                                    //set deliver state
+        int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
+        if (distanceToHQ < 3) {
+            List<RobotRequest> requests = scoutingRadio.readScoutRequest();
+            boolean cmdAccepted = false;
+            if (!requests.isEmpty()) {
+                for (RobotRequest request : requests) {
+                    if (cmdAccepted == false) {
+                        int msgType = request.getMetadata()[0]; //we have 4 bits, so 16 options here
+                        MapLocation cmdLocation = request.location;
+                        int cmd = request.getMetadata()[1];
+                        switch (msgType) {
+                            case 0: // FOUND AN ISLAND! Go here scurvy dog!
+                                //deliver an anchor here
+                                //if cmd == 0, regular anchor
+                                //if cmd == 1, accelerating anchor
+                                if (cmd == 0) {
+                                    //get regular anchor
+                                    //there should be one waiting at hq and we should already have it on us
+                                    if (rc.getAnchor() != null) {
+                                        statusString.append("AR. ");
+                                        //System.out.println("Delivering anchor to " + cmdLocation);
+                                        //set deliver state by making this the first object in knownIslandLocations
+                                        Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
+                                        temp.add(cmdLocation);
+                                        for (MapLocation oldIsland : knownIslandLocations) {
+                                            if (oldIsland != cmdLocation) {
+                                                temp.add(oldIsland);
+                                            }
+                                        }
+                                        knownIslandLocations = temp;
+                                        //reply to message
+                                        scoutingRadio.sendScoutAccept(request);
+                                        cmdAccepted = true;//stop checking new messages
+                                        rc.setIndicatorDot(cmdLocation, 0, 255, 255);//just mark that you see the mine
+                                    }
+                                }
+                                break;
+                            case 1: //carrier "go mine here"
+                                scoutingRadio.sendScoutAccept(request);
+                                cmdLocation = request.location;
+                                cmd = request.getMetadata()[1];
+                                if (cmd == 0) {
                                     Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
                                     temp.add(cmdLocation);
-                                    for (MapLocation oldWells : knownIslandLocations) {
-                                        temp.add(oldWells);
+                                    for (MapLocation oldWell : knownWellLocations) {
+                                        if (oldWell != cmdLocation) {
+                                            temp.add(oldWell);
+                                        }
                                     }
-                                    knownIslandLocations = temp;
+                                    knownWellLocations = temp;
+                                    cmdAccepted = true;//stop checking new messages
                                     //reply to message
                                     scoutingRadio.sendScoutAccept(request);
-                                    cmdAccepted = true;
                                 }
-                            }
-                        break;
-                    case 1: //launcher "go mine here"
-                        scoutingRadio.sendScoutAccept( request );
-                        rc.setIndicatorDot( request.location , 0, 255 , 255);//just mark that you see the mine
-                        break;
-                    case 2: //launcher "make elixer here"
-                        break;
-                    case 3:
-                        break;
-                    //and on it goes to 15 (16 total)
-                    default:
-                        break;
+                                //other commands could be to stop mining... or to defend the mine
+                                rc.setIndicatorDot(cmdLocation, 0, 255, 255);//just mark that you see the mine
+                                break;
+                            case 2: //carrier "make elixer here"
+                                break;
+                            case 3: //launcher
+                                break;
+                            //and on it goes to 15 (16 total)
+                            default:
+                                break;
+                        }
                     }
                 }
             }
@@ -626,8 +669,8 @@ public strictfp class RobotPlayer {
      * Return to HQ and deposit all resources
      */
     static void depositToHQ(RobotController rc, StringBuilder statusString) throws GameActionException {
-        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 0.8f);
-        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= (CARRIER_THRESHOLD) ;
+        final int CARRIER_THRESHOLD = (int)(GameConstants.CARRIER_CAPACITY * 1.0f);
+        boolean isCarrierFull = (rc.getResourceAmount(ResourceType.ADAMANTIUM) + rc.getResourceAmount(ResourceType.MANA) + rc.getResourceAmount(ResourceType.ELIXIR) ) >= CARRIER_THRESHOLD ;
         if(isCarrierFull) {
             statusString.append("isFull. ");
             //are we close enough to deposit resources?
@@ -1188,12 +1231,15 @@ public strictfp class RobotPlayer {
 
         //report island we can see
         //if unclaimed island - report this island
-        if (islandLocation != null) { //todo maybe follow the one we know about first?
+        if (reportIslandLocation == null) {
+            reportIslandLocation = newislandLocation;
+        }
+        if (reportIslandLocation != null) { //todo maybe follow the one we know about first?
             //remember island exists
-            islandLocation = newislandLocation;
+            reportIslandLocation = newislandLocation;
             //todo if we see an amplifier nearby, just say it
             //else return to hq to talk about it, (request anchor for island)
-            statusString.append("repI("+ islandLocation +"). ");
+            statusString.append("repI("+ reportIslandLocation +"). ");
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             //todo maybe a move request that we can decide on performing later?
             if (distanceToHQ > 10 && rc.isMovementReady()) {
@@ -1206,7 +1252,7 @@ public strictfp class RobotPlayer {
             if (distanceToHQ <= 9 ){
                 //todo transmit about island location
                 statusString.append("txIs. ");
-                newislandLocation = null;
+                reportIslandLocation = null;
             }
         }
 

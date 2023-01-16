@@ -24,25 +24,27 @@ public class AmplifierController {
     MapLocation target;
 
     public void run (RobotController rc, int turnCount) throws GameActionException {
+        StringBuilder indicatorString = new StringBuilder();
         map.update( mapRadio.readAndCacheEmpty() );  // get updates from map
         //move to random places
-        moveRandomly(rc);
-        senseForWellsAndBroadcast(rc);
+        moveRandomly(rc, indicatorString);
+        senseForWellsAndBroadcast(rc, indicatorString);
+        rc.setIndicatorString(indicatorString.toString());
     }
 
-    private void moveRandomly(RobotController rc) throws GameActionException {
+    private void moveRandomly(RobotController rc, StringBuilder indicatorString) throws GameActionException {
         boolean shouldFindNewRndTarget = target == null || target.distanceSquaredTo(rc.getLocation()) < MIN_TARGET_PROXIMITY;
         if(shouldFindNewRndTarget) {
             target = new MapLocation(Math.abs(rand.nextInt() % (rc.getMapWidth() - 1)), Math.abs(rand.nextInt() % (rc.getMapHeight() - 1)));
         }
         CarrierUtils.moveTowardsTarget(rc , this.target);
         rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
-        rc.setIndicatorString("moving to "+target);
+        indicatorString.append("moving to "+target);
     }
 
 
 
-    private void senseForWellsAndBroadcast(RobotController rc) {
+    private void senseForWellsAndBroadcast(RobotController rc, StringBuilder indicatorString) {
         WellInfo[] wells = rc.senseNearbyWells();
         if(wells.length>0){
             for(WellInfo wellInfo : wells){
@@ -54,10 +56,10 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_AD,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
-                            rc.setIndicatorString("NEW AD well");
+                            indicatorString.append("NEW AD well");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
                         } else {
-                            rc.setIndicatorString("see old AD well");
+                            indicatorString.append("see old AD well");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
@@ -67,10 +69,10 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_MANA,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
-                            rc.setIndicatorString("NEW MANA well");
+                            indicatorString.append("NEW MANA well");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
                         } else {
-                            rc.setIndicatorString("see old MANA well");
+                            indicatorString.append("see old MANA well");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
@@ -80,10 +82,10 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_ELIXER,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
-                            rc.setIndicatorString("NEW ELIXER well");
+                            indicatorString.append("NEW ELIXER well");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
                         } else {
-                            rc.setIndicatorString("see old ELIXER well");
+                            indicatorString.append("see old ELIXER well");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
