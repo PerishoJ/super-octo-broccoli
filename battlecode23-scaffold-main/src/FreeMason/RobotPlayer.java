@@ -461,6 +461,8 @@ public strictfp class RobotPlayer {
                         }
                         break;
                     case 1: //launcher "go mine here"
+                        scoutingRadio.sendScoutAccept( request );
+                        rc.setIndicatorDot( request.location , 0, 255 , 255);//just mark that you see the mine
                         break;
                     case 2: //launcher "make elixer here"
                         break;

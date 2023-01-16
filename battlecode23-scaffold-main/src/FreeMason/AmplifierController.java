@@ -1,9 +1,6 @@
 package FreeMason;
 
-import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-import battlecode.common.WellInfo;
+import battlecode.common.*;
 
 import java.util.Random;
 
@@ -28,22 +25,22 @@ public class AmplifierController {
 
     public void run (RobotController rc, int turnCount) throws GameActionException {
         map.update( mapRadio.readAndCacheEmpty() );  // get updates from map
-//        List<RobotRequest> requests = robotRadio.readScoutRequest();
-//        for(RobotRequest request : requests ){
-//            if(request.metadata[0] == 2){
-//
-//            }
-//        }
-
-        if(target == null || target.distanceSquaredTo(rc.getLocation())< MIN_TARGET_PROXIMITY){
-            target = new MapLocation(rand.nextInt()%rc.getMapWidth() - 1, rand.nextInt()% rc.getMapHeight() -1);
-        }
-
-        rc.move(RobotPlayer.getDirectionToLocation(rc, target));
-        rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
-
+        //move to random places
+        moveRandomly(rc);
         senseForWellsAndBroadcast(rc);
     }
+
+    private void moveRandomly(RobotController rc) throws GameActionException {
+        boolean shouldFindNewRndTarget = target == null || target.distanceSquaredTo(rc.getLocation()) < MIN_TARGET_PROXIMITY;
+        if(shouldFindNewRndTarget) {
+            target = new MapLocation(Math.abs(rand.nextInt() % (rc.getMapWidth() - 1)), Math.abs(rand.nextInt() % (rc.getMapHeight() - 1)));
+        }
+        CarrierUtils.moveTowardsTarget(rc , this.target);
+        rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
+        rc.setIndicatorString("moving to "+target);
+    }
+
+
 
     private void senseForWellsAndBroadcast(RobotController rc) {
         WellInfo[] wells = rc.senseNearbyWells();
@@ -57,6 +54,11 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_AD,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
+                            rc.setIndicatorString("NEW AD well");
+                            rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
+                        } else {
+                            rc.setIndicatorString("see old AD well");
+                            rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
                     case MANA:
@@ -65,6 +67,11 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_MANA,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
+                            rc.setIndicatorString("NEW MANA well");
+                            rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
+                        } else {
+                            rc.setIndicatorString("see old MANA well");
+                            rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
                     case ELIXIR:
@@ -73,6 +80,11 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_ELIXER,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
+                            rc.setIndicatorString("NEW ELIXER well");
+                            rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
+                        } else {
+                            rc.setIndicatorString("see old ELIXER well");
+                            rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
                 }

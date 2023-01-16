@@ -66,6 +66,7 @@ public class HqController {
                                 int[] requestData= {MINING_REQUEST, 0, 0};
                                 //send 5 guys to mine
                                 robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
+                                rc.setIndicatorLine(rc.getLocation() , pckg.location , 0 , 255, 255);// mark the dot
                             }
                         }
                     }
