@@ -31,6 +31,7 @@ public class HqController {
 
         //read new map entries
         List<SimpleMap.SimplePckg> mapDIff = mapRadio.readAndCacheEmpty();
+
         //house cleaning
         if(turnCount >= turnToClean){
             mapRadio.clearAll();
@@ -49,25 +50,28 @@ public class HqController {
             }
         }
 
+        int newSTuff = 0;
+        int rscWells = 0;
+        int dupWells = 0;
         //Look at the updates on the map
         if(!mapDIff.isEmpty()){
             for(SimpleMap.SimplePckg pckg : mapDIff){
                 //only look at new stuff
                 boolean isThisNewShit = !map.map.containsKey(pckg.location);
                 if(isThisNewShit){
+                    newSTuff++;
                     //Mine new wells if you can.
                     if( isThisAResourceWell (pckg)){
+                        rscWells++;
                         //queue up some workers
                         //send a command to go to well
                         // IF AND ONLY IF...someone hasn't beaten you to it.
-                        for(RobotRequest request : requests){
-                            boolean isThisTheSameRequest =  MINING_REQUEST == request.metadata[0] || request.location == pckg.location;
-                            if( ! isThisTheSameRequest ){
-                                int[] requestData= {MINING_REQUEST, 0, 0};
-                                //send 5 guys to mine
-                                robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
-                                rc.setIndicatorLine(rc.getLocation() , pckg.location , 0 , 255, 255);// mark the dot
-                            }
+                        boolean isDuplicate = isDuplicate(requests, pckg);
+                        if(!isDuplicate){
+                            int[] requestData= {MINING_REQUEST, 0, 0};
+                            //send 5 guys to mine
+                            robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
+                            rc.setIndicatorLine(rc.getLocation() , pckg.location , 0 , 255, 255);// mark the dot
                         }
                     }
                 }
@@ -98,6 +102,18 @@ public class HqController {
             (Explore) Do we know where anything is at? No? Scout that shit out
          */
 
+    }
+
+    private static boolean isDuplicate(List<RobotRequest> requests, SimpleMap.SimplePckg pckg) {
+        boolean isDuplicate = false;
+        for(RobotRequest request : requests){
+            boolean isThisTheSameRequest =  MINING_REQUEST == request.metadata[0] || request.location == pckg.location;
+            if( isThisTheSameRequest ){
+                isDuplicate = true;
+                break;
+            }
+        }
+        return isDuplicate;
     }
 
     private static boolean isThisAResourceWell(SimpleMap.SimplePckg pckg) {
