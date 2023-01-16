@@ -245,18 +245,27 @@ public strictfp class RobotPlayer {
      * test communications hq
      */
     static void hqlogic (RobotController rc, StringBuilder statusString) throws GameActionException {
-        if (turnCount == 5) {
-            //make a carrier
-            HqUtils.buildCarrier(rc, rc.getLocation().add(Direction.EAST));
-            statusString.append("build carrier. ");
-        }
-        if (turnCount == 4) {
+
+        if (turnCount == 1) {
             //make anchor
             HqUtils.buildAnchorSTD(rc);
             statusString.append("sending reqest: (20,23), 1");
             //send a message for a carrier to take anchor to a known island. run on default map
-            scoutingRadio.sendScoutRequest(new MapLocation(20, 23), 1);
+            scoutingRadio.sendScoutRequest(new MapLocation(21, 19), 1);
         }
+        else if (turnCount == 2) {
+            //make a carrier
+            HqUtils.buildCarrier(rc, rc.getLocation().add(Direction.EAST));
+            statusString.append("build carrier. ");
+        }
+        else if (rc.getResourceAmount(ResourceType.MANA) > 100 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 100) {
+            //make anchor
+            HqUtils.buildAnchorSTD(rc);
+            statusString.append("sending reqest: (2,1), 1");
+            //send a message for a carrier to take anchor to a known island. run on default map
+            scoutingRadio.sendScoutRequest(new MapLocation(2, 1), 1);
+        }
+
     }
 
     /**
@@ -299,21 +308,25 @@ public strictfp class RobotPlayer {
         //save hq you spawned from
         if( turnCount == 1) {
             hqLocation = findHq(rc);
-            statusString.append("FoundHQ turn 1.");
+            statusString.append("FoundHQ. ");
         }
         //save other hq locations too
         if (turnCount ==2){
             //todo Save other hq locations read from communications array
         }
+
+        rc.setIndicatorString(statusString + " ...wtf after save hq");
+
         //depositing:
         //are we close to home? do home things
         int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
-        if (distanceToHq <= 2) {
+        statusString.append("dist2hq:" + distanceToHq + ". ");
+        if (distanceToHq <= 3) {
             depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
             //picking up anchors:
             //if we know where to take an anchor, grab one from hq
-            if (knownIslandLocations.size() > 0) {
-                statusString.append("wantAnchor. ");
+            //if (knownIslandLocations.size() > 0) {
+                //statusString.append("wantAnchor. ");
                 //if hq has an anchor, pick it up.
                 if (rc.canTakeAnchor(hqLocation, Anchor.STANDARD)) {
                     statusString.append("pickupAnchor. ");
@@ -321,14 +334,19 @@ public strictfp class RobotPlayer {
                 } else if (rc.canTakeAnchor(hqLocation, Anchor.ACCELERATING)) {
                     rc.takeAnchor(hqLocation, Anchor.ACCELERATING);
                 }
-            }
+            //}
         }
+
+        statusString.append("isl:" + knownIslandLocations.size() + ". ");// + "anchor: " + rc.getAnchor().toString() + ". ");
+        rc.setIndicatorString(statusString + " ...wtf after depositing");
 
         //delivering anchors:
         if (rc.getAnchor() != null) {
             //deliver to first island in list
             anchorDelivery2(rc, knownIslandLocations, statusString); //todo might need to find cloest
         }
+
+        rc.setIndicatorString(statusString + " ...wtf after delivering anchors");
 
         //looking for islands/wells:
         //add wells in sight
@@ -345,6 +363,8 @@ public strictfp class RobotPlayer {
                 }
             }
         }
+
+        rc.setIndicatorString(statusString + " ...wtf after looking for wells");
 
         //islands by team
         int[] islands = rc.senseNearbyIslands();
@@ -379,6 +399,8 @@ public strictfp class RobotPlayer {
             }
         }
 
+        rc.setIndicatorString(statusString + " ...wtf after islands by team");
+
         //report island we can see
         //if unclaimed island - report this island
         if (islandLocation != null) { //todo maybe follow the one we know about first?
@@ -403,7 +425,7 @@ public strictfp class RobotPlayer {
             }
         }
 
-            rc.setIndicatorString(statusString + " ...wtf after report island ");
+        rc.setIndicatorString(statusString + " ...wtf after report island ");
 
         //look for command from communication array
         //  execute command, might just be adding island or well to known list.
@@ -500,6 +522,7 @@ public strictfp class RobotPlayer {
 
         //System.out.println("if well\n  knownWellLocations: " + knownWellLocations.size());
         if (!knownWellLocations.isEmpty()) {
+            statusString.append("knowWell. ");
             //todo pick closest well, best well?
             //decide what well to go to based on wellNumber used last time. move on from crowded wells
             //if well location is full, try next weld location
@@ -657,9 +680,12 @@ public strictfp class RobotPlayer {
     static void anchorDelivery2(RobotController rc, Set<MapLocation> knownIslandLocations, StringBuilder statusString) throws GameActionException {
         if (!knownIslandLocations.isEmpty()) {
             MapLocation islandLocation = knownIslandLocations.stream().findFirst().get();
-            statusString.append("Moving my anchor towards " + islandLocation + ". ");
+            statusString.append("anchor towards " + islandLocation + ". ");
+
             while (!rc.getLocation().equals(islandLocation)) {
                 Direction dir = getDirectionToLocation(rc, islandLocation);
+                statusString.append(" dir:" + dir + ". ");
+                rc.setIndicatorString(statusString + " wtf?");
                 if (rc.canMove(dir)) {
                     rc.move(dir);
                 }
