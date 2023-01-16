@@ -60,6 +60,7 @@ public strictfp class RobotPlayer {
         Direction.WEST,
         Direction.NORTHWEST,
     };
+    private static HqController hqController;
 
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
@@ -77,6 +78,10 @@ public strictfp class RobotPlayer {
 
         // You can also use indicators to save debug notes in replays.
         scoutingRadio = new RobotRadio(rc);
+        SimpleMap gameMap = new SimpleMap();
+        SimpleMapRadio mapRadio = new SimpleMapRadio(rc);
+
+        new HqController(gameMap,mapRadio,scoutingRadio);
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
