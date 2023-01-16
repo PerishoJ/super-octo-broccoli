@@ -187,7 +187,6 @@ public strictfp class RobotPlayer {
 
         StringBuilder statusString = new StringBuilder();
         statusString.append(turnCount + ":");
-
         hqlogic(rc, statusString);
 
         /*
@@ -248,6 +247,11 @@ public strictfp class RobotPlayer {
      */
     static void hqlogic (RobotController rc, StringBuilder statusString) throws GameActionException {
 
+        if (turnCount < 53) {
+            System.out.println("turn: " + turnCount);
+        }else{
+            rc.resign();
+        }
         if (turnCount == 1) {
             //make anchor
             HqUtils.buildAnchorSTD(rc);
@@ -380,9 +384,7 @@ public strictfp class RobotPlayer {
         rc.setIndicatorString(statusString + " ...wtf after mining wells ");
 
         //if it is full of either resource, go home.
-
-            depositToHQ(rc, statusString);
-
+        depositToHQ(rc, statusString);
 
         rc.setIndicatorString(statusString + " ...wtf after deposit to HQ ");
 
@@ -401,6 +403,9 @@ public strictfp class RobotPlayer {
         carrierAttack(rc, statusString);
         statusString.append("NoOp");
         rc.setIndicatorString(statusString.toString());
+        if(true) { //rc.getAnchor() != null) {
+            System.out.println(statusString.toString());
+        }
     }//end runCarrier2
 
 
@@ -412,7 +417,7 @@ public strictfp class RobotPlayer {
      */
     static void depositing (RobotController rc, StringBuilder statusString) throws GameActionException {
         int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
-        statusString.append("dist2hq:" + distanceToHq + ". ");
+        //statusString.append("dist2hq:" + distanceToHq + ". ");
         if (distanceToHq <= 3) {
             depositToHQ(rc, statusString); //moves closer to hq if it has to, deposits
             //picking up anchors:
@@ -530,47 +535,51 @@ public strictfp class RobotPlayer {
      */
     static void scoutingCommands(RobotController rc, StringBuilder statusString) throws GameActionException {
         List<RobotRequest> requests = scoutingRadio.readScoutRequest();
+        boolean cmdAccepted = false;
         if(!requests.isEmpty()){
             for(RobotRequest request : requests){
-                int msgType = request.getMetadata()[0]; //we have 4 bits, so 16 options here
-                switch (msgType){
-                    case 0: // FOUND AN ISLAND! Go here scurvy dog!
-                        //deliver an anchor here
-                        //Launcher version: go to this if you are a launcher
-                        MapLocation cmdLocation = request.location;
-                        int cmd = request.getMetadata()[1];
-                        //if cmd == 0, regular anchor
-                        //if cmd == 1, accelerating anchor
+                if (cmdAccepted == false) {
+                    int msgType = request.getMetadata()[0]; //we have 4 bits, so 16 options here
+                    switch (msgType) {
+                        case 0: // FOUND AN ISLAND! Go here scurvy dog!
+                            //deliver an anchor here
+                            //Launcher version: go to this if you are a launcher
+                            MapLocation cmdLocation = request.location;
+                            int cmd = request.getMetadata()[1];
+                            //if cmd == 0, regular anchor
+                            //if cmd == 1, accelerating anchor
 
-                        if (cmd == 0) {
-                            //get regular anchor
-                            //there should be one waiting at hq and we should already have it on us
-                            if (rc.getAnchor() != null){
-                                statusString.append("Delivering Anchor, answering call. ");
-                                //set deliver state
-                                Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
-                                temp.add(cmdLocation);
-                                for (MapLocation oldWells : knownIslandLocations) {
-                                    temp.add(oldWells);
+                            if (cmd == 0) {
+                                //get regular anchor
+                                //there should be one waiting at hq and we should already have it on us
+                                if (rc.getAnchor() != null) {
+                                    statusString.append("AR. ");
+                                    //System.out.println("Delivering anchor to " + cmdLocation);
+                                    //set deliver state
+                                    Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
+                                    temp.add(cmdLocation);
+                                    for (MapLocation oldWells : knownIslandLocations) {
+                                        temp.add(oldWells);
+                                    }
+                                    knownIslandLocations = temp;
+                                    //reply to message
+                                    scoutingRadio.sendScoutAccept(request);
+                                    cmdAccepted = true;
                                 }
-                                knownIslandLocations = temp;
-                                //reply to message
-                                scoutingRadio.sendScoutAccept(request);
                             }
-                        }
-                        break;
-                    case 1: //launcher "go mine here"
-                        break;
-                    case 2: //launcher "make elixer here"
-                        break;
-                    case 3:
-                        break;
-                    //and on it goes to 15 (16 total)
-                    default:
-                        break;
+                            break;
+                        case 1: //launcher "go mine here"
+                            break;
+                        case 2: //launcher "make elixer here"
+                            break;
+                        case 3:
+                            break;
+                        //and on it goes to 15 (16 total)
+                        default:
+                            break;
+                    }
                 }
             }
-
         }
     }
 
@@ -766,60 +775,7 @@ public strictfp class RobotPlayer {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Searches nearby for the Headquarters. This should be run to init the bot.
@@ -872,12 +828,18 @@ public strictfp class RobotPlayer {
                 MapLocation islandLocation = knownIslandLocations.stream().findFirst().get();
                 statusString.append("anchor towards " + islandLocation + ". ");
 
-                while (!rc.getLocation().equals(islandLocation)) {
+                if (!rc.getLocation().equals(islandLocation)) {  //was a while loop lol
                     Direction dir = getDirectionToLocation(rc, islandLocation);
                     statusString.append(" dir:" + dir + ". ");
                     rc.setIndicatorString(statusString + " wtf?");
                     if (rc.canMove(dir)) {
                         rc.move(dir);
+                    }
+                    Direction dir2 = getDirectionToLocation(rc, islandLocation);
+                    statusString.append(" dir:" + dir2 + ". ");
+                    rc.setIndicatorString(statusString + " wtf?");
+                    if (rc.canMove(dir2)) {
+                        rc.move(dir2);
                     }
                 }
                 if (rc.canPlaceAnchor()) {
@@ -1066,7 +1028,7 @@ public strictfp class RobotPlayer {
             Direction dir = rc.getLocation().directionTo(location);
             //find a direction we can actually move to
             for (int dirs = 0; dirs < directions.length - 1; dirs++) {
-                if (rc.canMove(dir)) {
+                if (rc.canMove(dir) && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite()) {
                     break;
                 } else {
                     dir = dir.rotateRight();
