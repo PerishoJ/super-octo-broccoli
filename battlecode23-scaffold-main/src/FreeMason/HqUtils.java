@@ -31,4 +31,16 @@ public class HqUtils {
             rc.buildRobot(RobotType.LAUNCHER, newLoc);
         }
     }
+
+    static boolean buildWherever(RobotController rc, RobotType type ) throws GameActionException {
+        for(int i = 0 ; i<Direction.values().length ; i++){
+            Direction buildDirection = Direction.values()[i];
+            MapLocation buildLocation =  rc.getLocation().add(buildDirection);
+            if( rc.canBuildRobot(type,buildLocation) ){
+                rc.buildRobot(type , buildLocation);
+                return true;
+            }
+        }
+        return false;
+    }
 }

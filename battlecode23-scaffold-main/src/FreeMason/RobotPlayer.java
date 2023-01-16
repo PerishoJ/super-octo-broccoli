@@ -48,6 +48,7 @@ public strictfp class RobotPlayer {
     static Direction lastDir = null;
 
     static RobotRadio scoutingRadio;
+    static AmplifierController amplifierController;
 
     /** Array containing all the possible movement directions. */
     static final Direction[] directions = {
@@ -81,8 +82,8 @@ public strictfp class RobotPlayer {
         SimpleMap gameMap = new SimpleMap();
         SimpleMapRadio mapRadio = new SimpleMapRadio(rc);
 
-        new HqController(gameMap,mapRadio,scoutingRadio);
-
+        hqController = new HqController(gameMap,mapRadio,scoutingRadio);
+        amplifierController =new AmplifierController(gameMap,mapRadio,scoutingRadio, rng );
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
@@ -97,12 +98,12 @@ public strictfp class RobotPlayer {
                 // use different strategies on different robots. If you wish, you are free to rewrite
                 // this into a different control structure!
                 switch (rc.getType()) {
-                    case HEADQUARTERS:     runHeadquarters(rc);  break;
+                    case HEADQUARTERS:     /*runHeadquarters(rc)*/ hqController.run(rc,turnCount);  break;
                     case CARRIER:      runCarrier(rc);   break;
                     case LAUNCHER: runLauncher(rc); break;
                     case BOOSTER: // Examplefuncsplayer doesn't use any of these robot types below.
                     case DESTABILIZER: // You might want to give them a try!
-                    case AMPLIFIER:       break;
+                    case AMPLIFIER: amplifierController.run(rc,turnCount);      break;
                 }
 
             } catch (GameActionException e) {
@@ -567,16 +568,18 @@ public strictfp class RobotPlayer {
                                     cmdAccepted = true;
                                 }
                             }
-                            break;
-                        case 1: //launcher "go mine here"
-                            break;
-                        case 2: //launcher "make elixer here"
-                            break;
-                        case 3:
-                            break;
-                        //and on it goes to 15 (16 total)
-                        default:
-                            break;
+                        break;
+                    case 1: //launcher "go mine here"
+                        scoutingRadio.sendScoutAccept( request );
+                        rc.setIndicatorDot( request.location , 0, 255 , 255);//just mark that you see the mine
+                        break;
+                    case 2: //launcher "make elixer here"
+                        break;
+                    case 3:
+                        break;
+                    //and on it goes to 15 (16 total)
+                    default:
+                        break;
                     }
                 }
             }
@@ -1023,7 +1026,7 @@ public strictfp class RobotPlayer {
     /**
      * if the path is blocked, rotate right
      */
-    private static Direction getDirectionToLocation(RobotController rc , MapLocation location ) throws GameActionException {
+    public static Direction getDirectionToLocation(RobotController rc , MapLocation location ) throws GameActionException {
         if (location != null) {
             Direction dir = rc.getLocation().directionTo(location);
             //find a direction we can actually move to

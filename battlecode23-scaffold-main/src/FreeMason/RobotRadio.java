@@ -21,6 +21,14 @@ public class RobotRadio {
     public RobotRadio(RobotController rc){ this.rc = rc; }
 
 
+    public void cleanRequestArray() throws GameActionException {
+        for(int i = 0; i < MAX_SCOUT_MSG_COUNT; i++){
+            //Read the requestedNumberOfRobots. If that number is 0, then this isn't a request anymore
+            int currentMsgOffset = i * RobotRequest.MSG_SIZE;
+            int writeIndex = SCOUT_INDEX_START + currentMsgOffset + RobotRequest.METADATA_1_OFFSET;
+            rc.writeSharedArray(writeIndex , 0);
+        }
+    }
     public List<RobotRequest> readScoutRequest() throws GameActionException {
         int index = SCOUT_INDEX_START;
         ArrayList<RobotRequest> requests = new ArrayList<>();

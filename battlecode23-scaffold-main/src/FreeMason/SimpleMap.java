@@ -2,6 +2,7 @@ package FreeMason;
 
 import battlecode.common.MapLocation;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -9,7 +10,10 @@ import java.util.TreeMap;
 public class SimpleMap {
 
     public enum BasicInfo {
-        ISLD_NEUTRAL,ISLD_OURS,ISLD_OURS_ACCEL,ISLD_THEIRS,ISLD_THEIRS_ACCEL,WELL_AD,WELL_MANA,WELL_ELIXER,OUR_HQ,THEIR_HQ,
+        ISLD_NEUTRAL,ISLD_OURS,ISLD_OURS_ACCEL,ISLD_THEIRS,ISLD_THEIRS_ACCEL,
+        WELL_AD,WELL_MANA,WELL_ELIXER,
+        OUR_HQ,THEIR_HQ,
+        STORM, CLOUDY, //only 3 left
         INVALID_BLOCK;// used for SharedArray plumbing
     }
 
@@ -65,6 +69,12 @@ public class SimpleMap {
     }
     public static SimplePckg deserialize(int serializedPair){
         return new SimplePckg(serializedPair);
+    }
+
+    public void update(List<SimplePckg> diff){
+        for(SimplePckg pckg : diff){
+            put(pckg);
+        }
     }
 
     public void put(SimplePckg pckg){
