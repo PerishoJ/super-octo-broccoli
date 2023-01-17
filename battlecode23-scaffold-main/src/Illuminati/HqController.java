@@ -42,7 +42,7 @@ public class HqController {
         map.update(mapDIff);
         buildOrder(rc, turnCount);
 
-        rc.setIndicatorString(indicatorString); //Indicators are horrible logs. Should probably be very careful about what we post here.
+        rc.setIndicatorString(indicatorString);
     }
 
     private static void handleIncomingRequests(RobotController rc, List<RobotRequest> requests) throws GameActionException {
