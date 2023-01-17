@@ -31,7 +31,6 @@ public class HqController {
         this.robotRadio = robotRadio;
     }
 
-    int turnToClean = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS;
     public void run (RobotController rc, int turnCount) throws GameActionException {
         String indicatorString = "";
         HqUtils.cleanSharedArray(rc, turnCount,robotRadio,mapRadio); // cleanup work is for utils classes ... nothing to do with commanding armies!
@@ -61,8 +60,8 @@ public class HqController {
             //queue up some workers
             //send a command to go to well
             // IF AND ONLY IF...someone hasn't beaten you to it.
-            boolean isDuplicate = isDuplicate(requests, pckg);
-            if(!isDuplicate){
+            boolean shouldRequestMine = ! isMiningRequestAlreadyInSharedArray(requests, pckg);
+            if(shouldRequestMine){
                 int[] requestData= {MINING_REQUEST, 0, 0};
                 //send 5 guys to mine
                 robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
@@ -139,7 +138,7 @@ public class HqController {
         }
     }
 
-    private static boolean isDuplicate(List<RobotRequest> requests, SimpleMap.SimplePckg pckg) {
+    private static boolean isMiningRequestAlreadyInSharedArray(List<RobotRequest> requests, SimpleMap.SimplePckg pckg) {
         boolean isDuplicate = false;
         for(RobotRequest request : requests){
             boolean isThisTheSameRequest =  MINING_REQUEST == request.metadata[0] || request.location == pckg.location;
