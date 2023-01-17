@@ -3,6 +3,7 @@ package FreeMason;
 import battlecode.common.*;
 
 import java.util.List;
+import java.util.Random;
 
 public class HqController {
     public static final int AMPLIFIER = 2;
@@ -12,6 +13,8 @@ public class HqController {
     SimpleMap map;
     SimpleMapRadio mapRadio;
     RobotRadio robotRadio;
+
+    static final Random rng = new Random(6257);
 
     public HqController(SimpleMap map, SimpleMapRadio mapRadio, RobotRadio robotRadio) {
         this.map = map;
@@ -42,6 +45,8 @@ public class HqController {
             turnToClean = turnCount + GRACE_PERIOD;
         }
 
+
+
         List<RobotRequest> requests = robotRadio.readScoutRequest();
         //If there is a mining request, build carriers until the request has been addressed
         for(RobotRequest request : requests){
@@ -50,6 +55,57 @@ public class HqController {
                 HqUtils.buildWherever(rc, RobotType.CARRIER);
             }
         }
+
+        //dumb building below
+
+        //make some launchers
+        if(rc.getResourceAmount(ResourceType.MANA) > 60 && turnCount < 10) {
+            HqUtils.buildWherever(rc, RobotType.LAUNCHER);
+        }
+        //make some miners
+        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 60 && turnCount > 1 && turnCount < 15) {
+            HqUtils.buildWherever(rc, RobotType.CARRIER);
+        }
+        //make some launchers
+        if(rc.getResourceAmount(ResourceType.MANA) > 100 && turnCount > 18 && turnCount < 26 ) {
+            HqUtils.buildWherever(rc, RobotType.LAUNCHER);
+        }
+        // we need scouts ...
+        if(rc.getResourceAmount(ResourceType.MANA) > 40 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 40 && turnCount > 22 && turnCount < 32 && rng.nextBoolean() ){
+            HqUtils.buildWherever(rc, RobotType.AMPLIFIER);
+            int explorationPattern = AmplifierController.ExplorationPattern.TOTAL_RANDOM.ordinal();
+            int[] metadata = {AMPLIFIER, explorationPattern ,0};
+            robotRadio.sendRequest( new MapLocation(0,0) , 1, metadata);
+        }
+        //make some miners
+        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 80 && turnCount > 26 && turnCount < 100) {
+            HqUtils.buildWherever(rc, RobotType.CARRIER);
+        }
+        // we need scouts ... if we have lots of money, we should make them
+        if(rc.getResourceAmount(ResourceType.MANA) > 300 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 40 && turnCount > 20 && turnCount < 600 && rng.nextBoolean() ){
+            HqUtils.buildWherever(rc, RobotType.AMPLIFIER);
+            int explorationPattern = AmplifierController.ExplorationPattern.TOTAL_RANDOM.ordinal();
+            int[] metadata = {AMPLIFIER, explorationPattern ,0};
+            robotRadio.sendRequest( new MapLocation(0,0) , 1, metadata);
+            //wave of launchers
+            if(rc.getResourceAmount(ResourceType.MANA) > 40 ) {
+                HqUtils.buildWherever(rc, RobotType.LAUNCHER);
+            }
+        }
+
+        //build anchor
+        if(rc.getResourceAmount(ResourceType.MANA) > 100 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 100 && turnCount > 54 && turnCount < 2000 && rng.nextBoolean()) {
+            if (rc.getNumAnchors(Anchor.STANDARD) < 1){
+                HqUtils.buildAnchorSTD(rc);
+            }
+        }
+        //make some miners
+        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 60 && turnCount > 54 && rng.nextBoolean()) {
+            HqUtils.buildWherever(rc, RobotType.CARRIER);
+        }
+
+
+
 
         int newSTuff = 0;
         int rscWells = 0;
@@ -83,15 +139,12 @@ public class HqController {
 
         indicatorString += "known wells: " + rscWells + ". ";
 
-        // we need scouts ... if we have lots of money, we should make them
-        if(turnCount == 2){
-            if(rc.canBuildRobot(RobotType.AMPLIFIER , rc.getLocation().translate(1,0))) {
-                rc.buildRobot(RobotType.AMPLIFIER , rc.getLocation().translate(1,0) );
-            }
-            int explorationPattern = AmplifierController.ExplorationPattern.TOTAL_RANDOM.ordinal();
-            int[] metadata = {AMPLIFIER, explorationPattern ,0};
-            robotRadio.sendRequest( new MapLocation(0,0) , 1, metadata);
+        //make some miners if we found a well
+        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 50 && turnCount > 54 && rscWells > 0) {
+            HqUtils.buildWherever(rc, RobotType.CARRIER);
         }
+
+
         /*GOALS
             (Local Scan) 1. Wells 2. Islands 3. Storms
 

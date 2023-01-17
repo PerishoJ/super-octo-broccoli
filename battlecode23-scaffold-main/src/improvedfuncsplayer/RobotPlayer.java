@@ -120,20 +120,20 @@ public strictfp class RobotPlayer {
         // If we don't have an anchor, build one!
         if (rc.getNumAnchors(Anchor.STANDARD) < 1 &&
                 rc.getResourceAmount(ResourceType.ADAMANTIUM) > 200 &&
-                rc.getResourceAmount(ResourceType.MANA) > 200) {
-            //buildAnchorSTD(rc);
+                rc.getResourceAmount(ResourceType.MANA) > 200 && turnCount > 10) {
+            buildAnchorSTD(rc);
         }
         if (rng.nextBoolean()) {
             // Let's try to build a carrier.
             rc.setIndicatorString("Trying to build a carrier");
             if (rc.canBuildRobot(RobotType.CARRIER, newLoc)) {
-                //rc.buildRobot(RobotType.CARRIER, newLoc);
+                rc.buildRobot(RobotType.CARRIER, newLoc);
             }
         } else {
             // Let's try to build a launcher.
             rc.setIndicatorString("Trying to build a launcher");
             if (rc.canBuildRobot(RobotType.LAUNCHER, newLoc)) {
-                //rc.buildRobot(RobotType.LAUNCHER, newLoc);
+                rc.buildRobot(RobotType.LAUNCHER, newLoc);
             }
         }
     }

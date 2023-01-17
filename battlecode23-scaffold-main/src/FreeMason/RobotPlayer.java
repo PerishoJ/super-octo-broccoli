@@ -26,7 +26,7 @@ public strictfp class RobotPlayer {
      * import at the top of this file. Here, we *seed* the RNG with a constant number (6147); this makes sure
      * we get the same sequence of numbers every time this code is run. This is very useful for debugging!
      */
-    static final Random rng = new Random(6147);
+    static final Random rng = new Random(6257);
 
     static PathFinding gameMap;
 
@@ -46,6 +46,7 @@ public strictfp class RobotPlayer {
 
     //remember last direction traversed
     static Direction lastDir = null;
+    static MapLocation target = null;
 
     static RobotRadio scoutingRadio;
     static AmplifierController amplifierController;
@@ -1108,16 +1109,65 @@ public strictfp class RobotPlayer {
         int radius = rc.getType().actionRadiusSquared;
         Team opponent = rc.getTeam().opponent();
         RobotInfo[] enemies = rc.senseNearbyRobots(radius, opponent);
+        int attackIndex = 0;
+        int carrierIndex = 0;
+        int hqIndex = 0;
+        boolean seenHQ = false;
+        boolean seenEnemy = false;
+        boolean seenCarrier = false;
         if (enemies.length > 0) {
-            MapLocation toAttack = enemies[0].location;
+            //search for enemy launcher
+            int index = 0;
+            for (RobotInfo enemy : enemies) {
+                RobotType enemyType = enemy.getType();
+                if (enemyType == RobotType.LAUNCHER || enemyType == RobotType.DESTABILIZER || enemyType == RobotType.BOOSTER) {
+                    attackIndex = index;
+                    seenEnemy = true;
+                    statusString.append("seeEnemy:"+attackIndex+" ");
+                    break;
+                }
+                else if (enemyType == RobotType.CARRIER) {
+                    carrierIndex = index;
+                    seenCarrier = true;
+                    statusString.append("seeCarrier:"+carrierIndex+" ");
+                }
+                else if (enemyType == RobotType.HEADQUARTERS){ //look at next enemy
+                    hqIndex = index;
+                    seenHQ = true;
+                    statusString.append("seeHQ:"+hqIndex+" ");
+                }
+                index++;
+            }
+            MapLocation toAttack = null;
+            //attack priority
+            if (seenEnemy) {
+                toAttack = enemies[attackIndex].location;
+            }
+            else if (seenCarrier) {
+                toAttack = enemies[carrierIndex].location;
+            }
+            else {
+                toAttack = enemies[0].location;
+                statusString.append("failover:"+toAttack+" ");
+            }
             //MapLocation toAttack = rc.getLocation().add(Direction.EAST); //examplefuncsplayer original line
             if (rc.canAttack(toAttack)) {
-                statusString.append("Attacking:" + enemies[0].location + ". ");
+                statusString.append("Attacking:" + toAttack + ". ");
                 rc.attack(toAttack);
             }
-            Direction attackDir = getDirectionToLocation(rc, enemies[0].location);
-            if (rc.canMove(attackDir)) {
-                rc.move(attackDir);
+            //move priority
+            Direction walkDir = null;
+            if (seenEnemy || seenCarrier) {
+                walkDir = getDirectionToLocation(rc, toAttack).opposite();
+                statusString.append("atkMv ");
+            }
+            else {
+                walkDir = getDirectionToLocation(rc, enemies[hqIndex].location);
+                statusString.append("hqMv ");
+            }
+            if (rc.canMove(walkDir) && rng.nextBoolean()) {
+                statusString.append("move:"+walkDir+" ");
+                rc.move(walkDir);
             }
         }
     }
@@ -1177,91 +1227,25 @@ public strictfp class RobotPlayer {
     static void runLauncher(RobotController rc) throws GameActionException {
         StringBuilder statusString = new StringBuilder();
         // Try to attack someone and chase them
+        rc.setIndicatorString(statusString + " ...wtf launcherAttack ");
         launcherAttack(rc, statusString);
 
+        rc.setIndicatorString(statusString + " ...wtf in moveRandomly ");
 
-        //looking for islands/wells:
-        //add wells in sight
-        WellInfo[] visibleWells = rc.senseNearbyWells();
-        if (visibleWells.length > 0) {
-            for (WellInfo well : visibleWells) {
-                MapLocation thisWellLocation = well.getMapLocation();
-                if(thisWellLocation != null) {
-                    if (!knownWellLocations.contains(thisWellLocation)) {
-                        statusString.append("saveWell" + well.getResourceType() + "(" + thisWellLocation + "). ");
-                        //System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
-                        knownWellLocations.add(thisWellLocation);
-                    }
-                }
-            }
-        }
-
-        //islands by team
-        int[] islands = rc.senseNearbyIslands();
-        Set<MapLocation> islandLocs = new HashSet<>(); //neutral islands = enum value of 2
-        Set<MapLocation> ourIslandLocs = new HashSet<>();
-        Set<MapLocation> enemyIslandLocs = new HashSet<>();
-        for (int id : islands) {
-            Team islandteam = rc.senseTeamOccupyingIsland(id);
-            if (islandteam == rc.getTeam()){
-                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
-                ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
-            }
-            else if (islandteam != rc.getTeam()){
-                if ( islandteam == Team.NEUTRAL ) { //neutral
-                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
-                    islandLocs.addAll(Arrays.asList(thisIslandLocs));
-                    //add islandLocs to knownIslandLocations
-                    for (MapLocation island : islandLocs){
-                        if (!knownIslandLocations.contains(island)) {
-                            statusString.append("remIs(" + island + "). ");
-                            knownIslandLocations.add(island); //todo might need to pick cloest one to hq
-                            newislandLocation = island;
-                        }
-                    }
-                }
-                else { //enemy
-                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
-                    enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
-                    //todo add these too?
-                    statusString.append("seeEnemyIsland. ");
-                }
-            }
-        }
-
-        //report island we can see
-        //if unclaimed island - report this island
-        if (reportIslandLocation == null) {
-            reportIslandLocation = newislandLocation;
-        }
-        if (reportIslandLocation != null) { //todo maybe follow the one we know about first?
-            //remember island exists
-            reportIslandLocation = newislandLocation;
-            //todo if we see an amplifier nearby, just say it
-            //else return to hq to talk about it, (request anchor for island)
-            statusString.append("repI("+ reportIslandLocation +"). ");
-            int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
-            //todo maybe a move request that we can decide on performing later?
-            if (distanceToHQ > 10 && rc.isMovementReady()) {
-                Direction dir = getDirectionToLocation(rc , hqLocation);
-                if (rc.canMove(dir)) {
-                    statusString.append("repMove. ");
-                    rc.move(dir);
-                }
-            }
-            if (distanceToHQ <= 9 ){
-                //todo transmit about island location
-                statusString.append("txIs. ");
-                reportIslandLocation = null;
-            }
-        }
-
-        rc.setIndicatorString(statusString + " ...wtf after report island ");
-
-
-        randomWalk(rc, statusString);
+        moveRandomly(rc, statusString);
 
         rc.setIndicatorString(statusString.toString());
+    }
+
+    public static void moveRandomly(RobotController rc, StringBuilder indicatorString) throws GameActionException {
+
+        boolean shouldFindNewRndTarget = ((target == null) || (target.distanceSquaredTo(rc.getLocation()) < 2));
+        if(shouldFindNewRndTarget) {
+            target = new MapLocation(Math.abs(rng.nextInt() % (rc.getMapWidth() - 1)), Math.abs(rng.nextInt() % (rc.getMapHeight() - 1)));
+        }
+        CarrierUtils.moveTowardsTarget(rc , target, indicatorString);
+        rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
+        indicatorString.append("moving to "+target+ " ");
     }
 
 }

@@ -32,14 +32,14 @@ public class AmplifierController {
         rc.setIndicatorString(indicatorString.toString());
     }
 
-    private void moveRandomly(RobotController rc, StringBuilder indicatorString) throws GameActionException {
+    public void moveRandomly(RobotController rc, StringBuilder indicatorString) throws GameActionException {
         boolean shouldFindNewRndTarget = target == null || target.distanceSquaredTo(rc.getLocation()) < MIN_TARGET_PROXIMITY;
         if(shouldFindNewRndTarget) {
             target = new MapLocation(Math.abs(rand.nextInt() % (rc.getMapWidth() - 1)), Math.abs(rand.nextInt() % (rc.getMapHeight() - 1)));
         }
-        CarrierUtils.moveTowardsTarget(rc , this.target);
+        CarrierUtils.moveTowardsTarget(rc , this.target, indicatorString);
         rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
-        indicatorString.append("moving to "+target);
+        indicatorString.append("moving to "+target+ " ");
     }
 
 
@@ -56,10 +56,10 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_AD,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
-                            indicatorString.append("NEW AD well");
+                            indicatorString.append("NEW AD well ");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
                         } else {
-                            indicatorString.append("see old AD well");
+                            indicatorString.append("see old AD well ");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
@@ -69,10 +69,10 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_MANA,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
-                            indicatorString.append("NEW MANA well");
+                            indicatorString.append("NEW MANA well ");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
                         } else {
-                            indicatorString.append("see old MANA well");
+                            indicatorString.append("see old MANA well ");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
@@ -82,10 +82,10 @@ public class AmplifierController {
                             SimpleMap.SimplePckg updatePckg = new SimpleMap.SimplePckg(SimpleMap.BasicInfo.WELL_ELIXER,wellInfo.getMapLocation());
                             map.put(updatePckg);
                             mapRadio.writeBlock(updatePckg);
-                            indicatorString.append("NEW ELIXER well");
+                            indicatorString.append("NEW ELIXER well ");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 0 , 0, 255);
                         } else {
-                            indicatorString.append("see old ELIXER well");
+                            indicatorString.append("see old ELIXER well ");
                             rc.setIndicatorDot(wellInfo.getMapLocation() , 255, 255, 155);
                         }
                         break;
