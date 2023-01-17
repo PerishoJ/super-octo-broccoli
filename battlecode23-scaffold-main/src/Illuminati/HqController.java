@@ -107,24 +107,21 @@ public class HqController {
 
 
 
-        int newSTuff = 0;
         int rscWells = 0;
-        int dupWells = 0;
         //Look at the updates on the map
         if(!mapDIff.isEmpty()){
             for(SimpleMap.SimplePckg pckg : mapDIff){
                 //only look at new stuff
                 boolean isThisNewShit = !map.map.containsKey(pckg.location);
                 if(isThisNewShit){
-                    newSTuff++;
                     //Mine new wells if you can.
                     if( isThisAResourceWell (pckg)){
-                        rscWells++;
                         //queue up some workers
                         //send a command to go to well
                         // IF AND ONLY IF...someone hasn't beaten you to it.
                         boolean isDuplicate = isDuplicate(requests, pckg);
                         if(!isDuplicate){
+                            rscWells++;
                             int[] requestData= {MINING_REQUEST, 0, 0};
                             //send 5 guys to mine
                             robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
