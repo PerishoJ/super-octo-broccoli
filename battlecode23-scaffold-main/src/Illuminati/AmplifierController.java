@@ -31,7 +31,7 @@ public class AmplifierController {
         map.update( mapRadio.readAndCacheEmpty() );  // get updates from map
         //move to random places
         moveRandomly(rc, indicatorString);
-        ScoutingUtils.senseForWellsAndBroadcast(rc, indicatorString,map,mapRadio);
+        ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);
         rc.setIndicatorString(indicatorString.toString());
     }
 

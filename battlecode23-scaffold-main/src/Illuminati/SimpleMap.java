@@ -9,17 +9,9 @@ import java.util.TreeMap;
 
 public class SimpleMap {
 
-    public enum BasicInfo {
-        ISLD_NEUTRAL,ISLD_OURS,ISLD_OURS_ACCEL,ISLD_THEIRS,ISLD_THEIRS_ACCEL,
-        WELL_AD,WELL_MANA,WELL_ELIXER,
-        OUR_HQ,THEIR_HQ,
-        STORM, CLOUDY, //only 3 left
-        INVALID_BLOCK;// used for SharedArray plumbing
-    }
+    public Map<MapLocation, MapFeature> map = new TreeMap<>(); //maybe should be hashmap, but fuck it
 
-    public Map<MapLocation, BasicInfo> map = new TreeMap<>(); //maybe should be hashmap, but fuck it
-
-    public static int serialize(MapLocation location, BasicInfo info){
+    public static int serialize(MapLocation location, MapFeature info){
         int ser = 0;
         ser = location.x;
         ser = ser << 6;
@@ -30,23 +22,23 @@ public class SimpleMap {
     }
 
     static class SimplePckg {
-        BasicInfo info;
+        MapFeature info;
         MapLocation location;
 
         public int serialize(){
             return SimpleMap.serialize(location,info);
         }
-        public SimplePckg(BasicInfo info, MapLocation location) {
+        public SimplePckg(MapFeature info, MapLocation location) {
             this.info = info;
             this.location = location;
         }
 
         public SimplePckg (int serializedPair){
             int infoOrdinal = (0b1111 & serializedPair);
-            if(infoOrdinal < BasicInfo.values().length){
-                info = BasicInfo.values()[infoOrdinal];
+            if(infoOrdinal < MapFeature.values().length){
+                info = MapFeature.values()[infoOrdinal];
             } else {
-                info = BasicInfo.INVALID_BLOCK;
+                info = MapFeature.INVALID_BLOCK;
             }serializedPair = serializedPair >> 4; //next
             int y = (0b111111 & serializedPair);
             serializedPair = serializedPair >> 6;
@@ -81,7 +73,7 @@ public class SimpleMap {
         map.put(pckg.location,pckg.info);
     }
 
-    public BasicInfo get(MapLocation location){
+    public MapFeature get(MapLocation location){
         return map.get(location);
     }
 }

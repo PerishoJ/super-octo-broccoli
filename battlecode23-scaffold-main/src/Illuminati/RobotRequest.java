@@ -20,7 +20,7 @@ public class RobotRequest {
     public static int LAST_OFFSET_POSITION;
     public MapLocation location;
     public int[] metadata = new int[4];
-
+    //TODO make the Request type a formal field for easy programming
 
     public int commArrayOffset;
 
