@@ -2,9 +2,7 @@ package Illuminati;
 
 import battlecode.common.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /*GOALS
     (Local Scan) 1. Wells 2. Islands 3. Storms
@@ -26,7 +24,7 @@ public class HqController {
     RobotRadio robotRadio;
     static final Random rng = new Random(6257);
 
-    List<MapLocation> HQLocations = new ArrayList<>(8); //I'm guessing there's going to be less than 8 HQ's usually
+    Set<MapLocation> HQLocations = new HashSet<>(8); //I'm guessing there's going to be less than 8 HQ's usually
     public HqController(SimpleMap map, SimpleMapRadio mapRadio, RobotRadio robotRadio) {
         this.map = map;
         this.mapRadio = mapRadio;
@@ -71,9 +69,13 @@ public class HqController {
             }
         } else {
             switch (pckg.info){
-                case OUR_HQ:
-                    HQLocations.add(pckg.location);
+                case OUR_HQ: //These are broadcast by our HQ's on turn 1
+                    if(! HQLocations.contains(pckg.location))
+                    {
+                        HQLocations.add(pckg.location);
+                    }
                     break;
+                //TODO Scan for enemy HQ's
             }
             //TODO handle every other map feature that can be sent (anything in the SimpleMap.)
         }
@@ -83,6 +85,7 @@ public class HqController {
         if(turnCount == 1){
             //broadcast wells
             ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);
+            //You are an HQ...Broadcast your location. Other HQ's will pick it up.
             mapRadio.writeBlock(new SimpleMap.SimplePckg(MapFeature.OUR_HQ , rc.getLocation()));
         }
         //make some launchers
