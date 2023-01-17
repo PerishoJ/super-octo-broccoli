@@ -2,6 +2,7 @@ package Illuminati;
 
 import battlecode.common.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -25,6 +26,7 @@ public class HqController {
     RobotRadio robotRadio;
     static final Random rng = new Random(6257);
 
+    List<MapLocation> HQLocations = new ArrayList<>(8); //I'm guessing there's going to be less than 8 HQ's usually
     public HqController(SimpleMap map, SimpleMapRadio mapRadio, RobotRadio robotRadio) {
         this.map = map;
         this.mapRadio = mapRadio;
@@ -68,14 +70,20 @@ public class HqController {
                 rc.setIndicatorLine(rc.getLocation() , pckg.location , 0 , 255, 255);// mark the dot
             }
         } else {
+            switch (pckg.info){
+                case OUR_HQ:
+                    HQLocations.add(pckg.location);
+                    break;
+            }
             //TODO handle every other map feature that can be sent (anything in the SimpleMap.)
         }
     }
 
     private void buildOrder(RobotController rc, int turnCount) throws GameActionException {
-        //broadcast all the wells nearby
         if(turnCount == 1){
+            //broadcast wells
             ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);
+            mapRadio.writeBlock(new SimpleMap.SimplePckg(MapFeature.OUR_HQ , rc.getLocation()));
         }
         //make some launchers
         if(rc.getResourceAmount(ResourceType.MANA) > 60 && turnCount < 10) {

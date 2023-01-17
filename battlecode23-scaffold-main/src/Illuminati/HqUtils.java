@@ -6,7 +6,7 @@ public class HqUtils {
 
     static final int MAGIC_CLEAN_NUMBER = 0x1EE7 ; //because this number is leet, bro
     public static final int CLEANING_PERIOD = 32; //completely arbitrary
-    public static final int DIRTY_INDEX = GameConstants.MAX_SHARED_ARRAY_VALUE - 1;
+    public static final int DIRTY_INDEX = GameConstants.SHARED_ARRAY_LENGTH - 1;
 
     /**
      * Checks if we can build a Carrier and does so
