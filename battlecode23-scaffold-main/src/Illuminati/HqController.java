@@ -13,7 +13,6 @@ public class HqController {
     SimpleMap map;
     SimpleMapRadio mapRadio;
     RobotRadio robotRadio;
-
     static final Random rng = new Random(6257);
 
     public HqController(SimpleMap map, SimpleMapRadio mapRadio, RobotRadio robotRadio) {
@@ -26,12 +25,8 @@ public class HqController {
     public void run (RobotController rc, int turnCount) throws GameActionException {
         String indicatorString = "";
         // hard clean of all commands every so often...because there'll be crap requests that nobody listens to clogging things up.
-        // TODO This could be better...alwell
-        if(turnCount % 32  == 1){
-            mapRadio.clearAll();
-            robotRadio.cleanRequestArray();
-            return; // any subsequest requests won't work, so just wait a little bit.
-        }
+
+        HqUtils.cleanSharedArray(rc, turnCount,robotRadio,mapRadio); // cleanup work is for utils classes ... nothing to do with commanding armies!
 
         //read new map entries
         List<SimpleMap.SimplePckg> mapDIff = mapRadio.readAndCacheEmpty();
@@ -155,6 +150,8 @@ public class HqController {
          */
         rc.setIndicatorString(indicatorString);
     }
+
+
 
     private static boolean isDuplicate(List<RobotRequest> requests, SimpleMap.SimplePckg pckg) {
         boolean isDuplicate = false;

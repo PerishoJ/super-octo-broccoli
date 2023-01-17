@@ -20,7 +20,6 @@ public class RobotRadio {
     static int MAX_SCOUT_MSG_COUNT = 8;
     public RobotRadio(RobotController rc){ this.rc = rc; }
 
-
     public void cleanRequestArray() throws GameActionException {
         for(int i = 0; i < MAX_SCOUT_MSG_COUNT; i++){
             //Read the requestedNumberOfRobots. If that number is 0, then this isn't a request anymore

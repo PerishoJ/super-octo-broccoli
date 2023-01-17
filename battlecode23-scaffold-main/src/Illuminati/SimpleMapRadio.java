@@ -32,7 +32,7 @@ public class SimpleMapRadio {
 
     public boolean writeBlock(SimpleMap.SimplePckg pckg){
         try{
-            if(emptyArraySlots==null || emptyArraySlots.isEmpty()){
+            if(emptyArraySlots==null || emptyArraySlots.isEmpty() || !rc.canWriteSharedArray(emptyArraySlots.pop() , pckg.serialize())){
                 return false;
             } else {
                 rc.writeSharedArray( emptyArraySlots.pop() , pckg.serialize());
