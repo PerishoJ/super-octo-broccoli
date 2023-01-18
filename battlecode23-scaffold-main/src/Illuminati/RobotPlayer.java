@@ -48,7 +48,6 @@ public strictfp class RobotPlayer {
         }
     }
     static Map<Integer, MapLocation> knownIslandLocations = new HashMap<>();
-    static Map< Integer , MapLocation> closestLocations= new HashMap<>();
 
 
     //well blacklist
@@ -423,7 +422,7 @@ public strictfp class RobotPlayer {
         statusString.append("NoOp");
         rc.setIndicatorString(statusString.toString());
         if( rc.getAnchor() != null) {
-            System.out.println(statusString.toString());
+            //System.out.println(statusString.toString());
         }
     }//end runCarrier2
 
@@ -505,7 +504,7 @@ public strictfp class RobotPlayer {
 
     static void addVisibleIslands (RobotController rc, StringBuilder statusString) throws GameActionException {
 
-        //Map< Integer , MapLocation> closestLocations= new HashMap<>(); //class variable
+        Map< Integer , MapLocation> closestLocations= new HashMap<>();
 
         Map<Integer, MapLocation> islands = getClosestIslands(rc, closestLocations);
 
@@ -516,8 +515,8 @@ public strictfp class RobotPlayer {
         for (Map.Entry<Integer, MapLocation> island : islands.entrySet()) {
             Team islandteam = rc.senseTeamOccupyingIsland(island.getKey());
             if (islandteam == rc.getTeam()){
-                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
-                ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
+                //ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
             }
             else if (islandteam != rc.getTeam()){
                 if ( islandteam == Team.NEUTRAL ) { //neutral
@@ -526,8 +525,8 @@ public strictfp class RobotPlayer {
                 }
             }
             else { //enemy
-                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
-                enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
+               // enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
                 //todo add these too? ... to avoid?
                 statusString.append("seeEnemyIsland. ");
                 // request launchers to fuck them up.
@@ -1219,10 +1218,28 @@ public strictfp class RobotPlayer {
      * Move in random direction
      */
     static void randomWalk (RobotController rc, StringBuilder statusString) throws GameActionException {
-        Direction dir = directions[rng.nextInt(directions.length)];
-        if (rc.canMove(dir)) {
-            statusString.append("RandomWalk:" + dir + ". ");
-            rc.move(dir);
+        if (lastDir == null) {
+            lastDir = rc.getLocation().directionTo(hqLocation).opposite();
+        }
+        if (rc.canMove(lastDir) && rng.nextBoolean()) {
+            statusString.append("RandomWalk:" + lastDir + ". ");
+            rc.move(lastDir);
+        }
+        else { //random
+            Direction dir = directions[rng.nextInt(directions.length)];
+            if (rc.canMove(dir)) {
+                statusString.append("RandomWalk:" + dir + ". ");
+                rc.move(dir);
+                lastDir = dir;
+            }
+            else {
+                Direction dir2 = rc.getLocation().directionTo(hqLocation).opposite();
+                if (rc.canMove(dir2)) {
+                    statusString.append("RandomWalk:" + dir2 + ". ");
+                    rc.move(dir2);
+                    lastDir = dir2;
+                }
+            }
         }
     }
 

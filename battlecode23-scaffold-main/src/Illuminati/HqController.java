@@ -93,7 +93,7 @@ public class HqController {
             mapRadio.writeBlock(new SimpleMap.SimplePckg(MapFeature.OUR_HQ , rc.getLocation()));
         }
         //make some launchers
-        if(rc.getResourceAmount(ResourceType.MANA) > 60 && turnCount < 10) {
+        if(rc.getResourceAmount(ResourceType.MANA) > 60 && turnCount < 10 || rc.getResourceAmount(ResourceType.MANA) > 200 && rng.nextBoolean()) {
             HqUtils.buildWherever(rc, RobotType.LAUNCHER);
         }
         //make some miners
@@ -134,7 +134,7 @@ public class HqController {
             }
         }
         //make some miners
-        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 60 && turnCount > 54 && rng.nextBoolean()) {
+        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 60 && rc.getResourceAmount(ResourceType.ADAMANTIUM) < 200  && turnCount > 54 && rng.nextBoolean()) {
             HqUtils.buildWherever(rc, RobotType.CARRIER);
         }
 
