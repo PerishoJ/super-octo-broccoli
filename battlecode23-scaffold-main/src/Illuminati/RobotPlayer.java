@@ -34,18 +34,22 @@ public strictfp class RobotPlayer {
     static MapLocation wellLocation = null;
     static int wellNumber = 0;
     static Set<MapLocation> knownWellLocations = new LinkedHashSet<MapLocation>();
+
     //remember island location
     static MapLocation reportIslandLocation = null;
     static MapLocation newislandLocation = null;
+    static MapLocation cmdIslandLocation = null;
     public static class IslandBlock {
         public int id;
         public MapLocation location;
-        @Override
+        //@Override
         public int hash(){
             return Objects.hash(id, location);
         }
     }
     static Map<Integer, MapLocation> knownIslandLocations = new HashMap<>();
+    static Map< Integer , MapLocation> closestLocations= new HashMap<>();
+
 
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
@@ -359,7 +363,14 @@ public strictfp class RobotPlayer {
 
         //delivering anchors:
         //deliver to first island in list
-        anchorDelivery2(rc, knownIslandLocations, statusString); //todo might need to find cloest
+        Set<MapLocation> kI = new LinkedHashSet<MapLocation>();
+        for (Map.Entry<Integer, MapLocation> island : knownIslandLocations.entrySet()) {
+            MapLocation loc = island.getValue();
+            if (loc != null) {
+                kI.add(loc);
+            }
+        }
+        anchorDelivery2(rc, kI, statusString); //todo might need to find cloest
 
         rc.setIndicatorString(statusString + " ...wtf in lookingWells");
 
@@ -494,42 +505,37 @@ public strictfp class RobotPlayer {
 
     static void addVisibleIslands (RobotController rc, StringBuilder statusString) throws GameActionException {
 
-        Map< Integer , MapLocation> closestLocations= new HashMap<>();
+        //Map< Integer , MapLocation> closestLocations= new HashMap<>(); //class variable
 
-        int[] islands = getClosestIslands(rc, closestLocations);
+        Map<Integer, MapLocation> islands = getClosestIslands(rc, closestLocations);
 
         Set<MapLocation> islandLocs = new HashSet<>(); //neutral islands = enum value of 2
         Set<MapLocation> ourIslandLocs = new HashSet<>();
         Set<MapLocation> enemyIslandLocs = new HashSet<>();
 
-        for (int id : islands) {
-            Team islandteam = rc.senseTeamOccupyingIsland(id);
+        for (Map.Entry<Integer, MapLocation> island : islands.entrySet()) {
+            Team islandteam = rc.senseTeamOccupyingIsland(island.getKey());
             if (islandteam == rc.getTeam()){
-                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
                 ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
             }
             else if (islandteam != rc.getTeam()){
                 if ( islandteam == Team.NEUTRAL ) { //neutral
-
                     //add to knowIslandLocations
-                    IslandBlock newIsland = new IslandBlock();
-                    newIsland.id = id;
-                    newIsland.location = closestLocations.get((id));
-                    knownIslandLocations.add(newIsland);
+                    knownIslandLocations.put(island.getKey(), closestLocations.get((island.getKey())));
                 }
             }
             else { //enemy
-                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
                 enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
                 //todo add these too? ... to avoid?
                 statusString.append("seeEnemyIsland. ");
                 // request launchers to fuck them up.
             }
-            }
         }
     }
 
-    private static int[] getClosestIslands(RobotController rc, Map<Integer, MapLocation> closestLocations) throws GameActionException {
+    private static Map<Integer, MapLocation> getClosestIslands(RobotController rc, Map<Integer, MapLocation> closestLocations) throws GameActionException {
         //get the closest island location for each ID
         int[] islands = rc.senseNearbyIslands();
         {
@@ -547,7 +553,7 @@ public strictfp class RobotPlayer {
                 }
             }
         }
-        return islands;
+        return closestLocations;
     }
 
     /**
@@ -616,18 +622,12 @@ public strictfp class RobotPlayer {
                                 if (cmd == 0) {
                                     //get regular anchor
                                     //there should be one waiting at hq and we should already have it on us
-                                    if (rc.getAnchor() != null) {
+                                    //if we have anchor and aren't arelady on a mission, accept this request.
+                                    if (rc.getAnchor() != null && cmdIslandLocation == null) {
                                         statusString.append("AR. ");
                                         //System.out.println("Delivering anchor to " + cmdLocation);
-                                        //set deliver state by making this the first object in knownIslandLocations
-                                        Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
-                                        temp.add(cmdLocation);
-                                        for (Map.Entry<Integer,MapLocation> oldIsland : knownIslandLocations.entrySet() ){
-                                            if (oldIsland.getValue() != cmdLocation) {
-                                                temp.add(oldIsland.getValue());
-                                            }
-                                        }
-                                        knownIslandLocations = temp;
+                                        //set deliver state by setting a seperate variable
+                                        cmdIslandLocation = cmdLocation;
                                         //reply to message
                                         scoutingRadio.sendScoutAccept(request);
                                         cmdAccepted = true;//stop checking new messages
@@ -910,17 +910,20 @@ public strictfp class RobotPlayer {
      */
     static void anchorDelivery2(RobotController rc, Set<MapLocation> knownIslandLocations, StringBuilder statusString) throws GameActionException {
         if (rc.getAnchor() != null) {
-            if (!knownIslandLocations.isEmpty()) {
+            if (!knownIslandLocations.isEmpty() || cmdIslandLocation != null) {
                 MapLocation islandLocation = knownIslandLocations.stream().findFirst().get();
+                if (cmdIslandLocation != null) {
+                    islandLocation = cmdIslandLocation;
+                }
                 statusString.append("anchor towards " + islandLocation + ". ");
-
-                if (!rc.getLocation().equals(islandLocation)) {  //was a while loop lol
+                if (!rc.getLocation().equals(islandLocation)) {
                     Direction dir = getDirectionToLocation(rc, islandLocation);
                     statusString.append(" dir:" + dir + ". ");
                     rc.setIndicatorString(statusString + " wtf?");
                     if (rc.canMove(dir)) {
                         rc.move(dir);
                     }
+                    //we can probably only walk once per turn ... lol
                     Direction dir2 = getDirectionToLocation(rc, islandLocation);
                     statusString.append(" dir:" + dir2 + ". ");
                     rc.setIndicatorString(statusString + " wtf?");
@@ -931,6 +934,7 @@ public strictfp class RobotPlayer {
                 if (rc.canPlaceAnchor()) {
                     statusString.append("Huzzah, placed anchor! ");
                     rc.placeAnchor();
+                    cmdIslandLocation = null;
                 }
             }
         }
