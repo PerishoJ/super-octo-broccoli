@@ -55,30 +55,34 @@ public class HqController {
     }
 
     private void handleNewMapFeatures(RobotController rc, List<RobotRequest> requests, SimpleMap.SimplePckg pckg) throws GameActionException {
-        //Mine new wells if you can.
-        if( isThisAResourceWell (pckg)){
-            //queue up some workers
-            //send a command to go to well
-            // IF AND ONLY IF...someone hasn't beaten you to it.
-            boolean shouldRequestMine = ! isMiningRequestAlreadyInSharedArray(requests, pckg);
-            if(shouldRequestMine){
-                int[] requestData= {MINING_REQUEST, 0, 0};
-                //send 5 guys to mine
-                robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
-                rc.setIndicatorLine(rc.getLocation() , pckg.location , 0 , 255, 255);// mark the dot
-            }
-        } else {
-            switch (pckg.info){
-                case OUR_HQ: //These are broadcast by our HQ's on turn 1
-                    if(! HQLocations.contains(pckg.location))
-                    {
-                        HQLocations.add(pckg.location);
-                    }
-                    break;
-                //TODO Scan for enemy HQ's
-            }
-            //TODO handle every other map feature that can be sent (anything in the SimpleMap.)
+        switch (pckg.info){
+            //Mine new wells if you can.
+            case WELL_AD:
+            case WELL_MANA:
+            case WELL_ELIXER:
+                //queue up some workers
+                //send a command to go to well
+                // IF AND ONLY IF...someone hasn't beaten you to it.
+                boolean shouldRequestMine = ! isMiningRequestAlreadyInSharedArray(requests, pckg);
+                if(shouldRequestMine){
+                    int[] requestData= {MINING_REQUEST, 0, 0};
+                    //send 5 guys to mine
+                    robotRadio.sendRequest(pckg.location , STANDARD_MINING_CREW_SIZE ,requestData );
+                    rc.setIndicatorLine(rc.getLocation() , pckg.location , 0 , 255, 255);// mark the dot
+                }
+                break;
+            case OUR_HQ: //These are broadcast by our HQ's on turn 1
+                if(! HQLocations.contains(pckg.location))
+                {
+                    HQLocations.add(pckg.location);
+                }
+                break;
+            case ISLD_NEUTRAL:
+                //make anchor
+                break;
         }
+        //TODO handle every other map feature that can be sent (anything in the SimpleMap.)
+
     }
 
     private void buildOrder(RobotController rc, int turnCount) throws GameActionException {
@@ -162,7 +166,7 @@ public class HqController {
     }
 
     private static boolean isThisAResourceWell(SimpleMap.SimplePckg pckg) {
-        return pckg.info == MapFeature.WELL_AD || pckg.info == MapFeature.WELL_MANA || pckg.info == MapFeature.WELL_ELIXER;
+        return false;
     }
 
 

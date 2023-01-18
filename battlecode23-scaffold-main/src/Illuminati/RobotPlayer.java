@@ -37,7 +37,15 @@ public strictfp class RobotPlayer {
     //remember island location
     static MapLocation reportIslandLocation = null;
     static MapLocation newislandLocation = null;
-    static Set<MapLocation> knownIslandLocations = new LinkedHashSet<MapLocation>();
+    public static class IslandBlock {
+        public int id;
+        public MapLocation location;
+        @Override
+        public int hash(){
+            return Objects.hash(id, location);
+        }
+    }
+    static Map<Integer, MapLocation> knownIslandLocations = new HashMap<>();
 
     //well blacklist
     static List<MapLocation> wellBlackList = new ArrayList<MapLocation>();
@@ -483,11 +491,17 @@ public strictfp class RobotPlayer {
      * @param statusString
      * @throws GameActionException
      */
+
     static void addVisibleIslands (RobotController rc, StringBuilder statusString) throws GameActionException {
-        int[] islands = rc.senseNearbyIslands();
+
+        Map< Integer , MapLocation> closestLocations= new HashMap<>();
+
+        int[] islands = getClosestIslands(rc, closestLocations);
+
         Set<MapLocation> islandLocs = new HashSet<>(); //neutral islands = enum value of 2
         Set<MapLocation> ourIslandLocs = new HashSet<>();
         Set<MapLocation> enemyIslandLocs = new HashSet<>();
+
         for (int id : islands) {
             Team islandteam = rc.senseTeamOccupyingIsland(id);
             if (islandteam == rc.getTeam()){
@@ -496,25 +510,44 @@ public strictfp class RobotPlayer {
             }
             else if (islandteam != rc.getTeam()){
                 if ( islandteam == Team.NEUTRAL ) { //neutral
-                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
-                    islandLocs.addAll(Arrays.asList(thisIslandLocs));
-                    //add islandLocs to knownIslandLocations
-                    for (MapLocation island : islandLocs){
-                        if (!knownIslandLocations.contains(island)) {
-                            //statusString.append("remIs(" + island + "). ");
-                            knownIslandLocations.add(island); //todo might need to pick cloest one to hq
-                            newislandLocation = island;
+
+                    //add to knowIslandLocations
+                    IslandBlock newIsland = new IslandBlock();
+                    newIsland.id = id;
+                    newIsland.location = closestLocations.get((id));
+                    knownIslandLocations.add(newIsland);
+                }
+            }
+            else { //enemy
+                MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
+                enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                //todo add these too? ... to avoid?
+                statusString.append("seeEnemyIsland. ");
+                // request launchers to fuck them up.
+            }
+            }
+        }
+    }
+
+    private static int[] getClosestIslands(RobotController rc, Map<Integer, MapLocation> closestLocations) throws GameActionException {
+        //get the closest island location for each ID
+        int[] islands = rc.senseNearbyIslands();
+        {
+            for(int islandId : islands){
+                MapLocation[] nearbyIslandLocs = rc.senseNearbyIslandLocations(islandId);
+                if(closestLocations.containsKey(islandId)){
+                    for(MapLocation newLocation : nearbyIslandLocs){
+                        boolean isNewIslandCloser = closestLocations.get(islandId).distanceSquaredTo(rc.getLocation())  < newLocation.distanceSquaredTo(rc.getLocation() );
+                        if(isNewIslandCloser){
+                            closestLocations.put((islandId), newLocation);
                         }
                     }
-                }
-                else { //enemy
-                    MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(id);
-                    enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
-                    //todo add these too?
-                    statusString.append("seeEnemyIsland. ");
+                } else {
+                   closestLocations.put((islandId), nearbyIslandLocs[0]);
                 }
             }
         }
+        return islands;
     }
 
     /**
@@ -545,6 +578,14 @@ public strictfp class RobotPlayer {
             if (distanceToHQ <= 9 ){
                 //todo transmit about island location
                 statusString.append("txIs. ");
+                // SimpleMap sharedMap = new SimpleMap(); // class field
+                SimpleMap.SimplePckg pckg = new SimpleMap.SimplePckg(MapFeature.ISLD_NEUTRAL , rc.getLocation());
+                // sharedMap.put(pckg);
+
+                SimpleMapRadio mapRadio = new SimpleMapRadio(rc);
+                mapRadio.readAndCacheEmpty();
+                mapRadio.writeBlock(pckg);
+
                 reportIslandLocation = null;
             }
         }
@@ -581,9 +622,9 @@ public strictfp class RobotPlayer {
                                         //set deliver state by making this the first object in knownIslandLocations
                                         Set<MapLocation> temp = new LinkedHashSet<MapLocation>();
                                         temp.add(cmdLocation);
-                                        for (MapLocation oldIsland : knownIslandLocations) {
-                                            if (oldIsland != cmdLocation) {
-                                                temp.add(oldIsland);
+                                        for (Map.Entry<Integer,MapLocation> oldIsland : knownIslandLocations.entrySet() ){
+                                            if (oldIsland.getValue() != cmdLocation) {
+                                                temp.add(oldIsland.getValue());
                                             }
                                         }
                                         knownIslandLocations = temp;
