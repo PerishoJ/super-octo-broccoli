@@ -86,7 +86,7 @@ public class HqController {
         indicatorString += "avgAD/MN:" + avgAD + "/";
 
         int mnNow = rc.getResourceAmount(ResourceType.MANA);
-        int mnIncome = mnNow = lastMNtotal;
+        int mnIncome = mnNow - lastMNtotal;
         historicalMN = updateHistorical(mnIncome, historicalMN);
         avgMN = calcAverage(mnNow, historicalMN, turnCount);
         lastMNtotal = mnNow; //for next turn
