@@ -512,24 +512,24 @@ public strictfp class RobotPlayer {
         Set<MapLocation> ourIslandLocs = new HashSet<>();
         Set<MapLocation> enemyIslandLocs = new HashSet<>();
 
-        for (Map.Entry<Integer, MapLocation> island : islands.entrySet()) {
-            Team islandteam = rc.senseTeamOccupyingIsland(island.getKey());
-            if (islandteam == rc.getTeam()){
-                //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
-                //ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
-            }
-            else if (islandteam != rc.getTeam()){
-                if ( islandteam == Team.NEUTRAL ) { //neutral
-                    //add to knowIslandLocations
-                    knownIslandLocations.put(island.getKey(), closestLocations.get((island.getKey())));
+        if (!closestLocations.isEmpty()) {
+            statusString.append("see " + closestLocations.size() + " islands. ");
+            for (Map.Entry<Integer, MapLocation> island : islands.entrySet()) {
+                Team islandteam = rc.senseTeamOccupyingIsland(island.getKey());
+                if (islandteam == rc.getTeam()) {
+                    //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
+                    //ourIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                } else if (islandteam != rc.getTeam()) {
+                    if (islandteam == Team.NEUTRAL) { //neutral
+                        //add to knowIslandLocations
+                        knownIslandLocations.put(island.getKey(), closestLocations.get((island.getKey())));
+                    }
+                } else { //enemy
+                    //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
+                    // enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
+                    //todo add these too? ... to avoid? // request launchers to fuck them up.
+                    statusString.append("seeEnemyIsland. ");
                 }
-            }
-            else { //enemy
-                //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
-               // enemyIslandLocs.addAll(Arrays.asList(thisIslandLocs));
-                //todo add these too? ... to avoid?
-                statusString.append("seeEnemyIsland. ");
-                // request launchers to fuck them up.
             }
         }
     }
@@ -571,15 +571,15 @@ public strictfp class RobotPlayer {
             statusString.append("repI("+ reportIslandLocation +"). ");
             int distanceToHQ = rc.getLocation().distanceSquaredTo(hqLocation);
             //todo maybe a move request that we can decide on performing later?
-            /* //try not moving back to base... we will eventually get there haha
-            if (distanceToHQ > 10 && rc.isMovementReady()) {
+
+            if (distanceToHQ > 9 && rc.isMovementReady()) {
                 Direction dir = getDirectionToLocation(rc , hqLocation);
                 if (rc.canMove(dir)) {
                     statusString.append("repMove. ");
                     rc.move(dir);
                 }
             }
-            */
+            //*/
             if (distanceToHQ <= 9 ){
                 //todo transmit about island location
                 statusString.append("txIs. ");
@@ -759,6 +759,7 @@ public strictfp class RobotPlayer {
             //todo pick closest well, best well?
             //decide what well to go to based on wellNumber used last time. move on from crowded wells
             //if well location is full, try next weld location
+            //todo maybe we should be able to go backwards to not get stuck in maps
 
             //poor implementation
             int wellLoop = wellNumber;
@@ -784,9 +785,9 @@ public strictfp class RobotPlayer {
             }
             Direction dir = getDirectionToLocation(rc, wellLocation);
 
-            statusString.append("2Well:" + wellLocation + "," + dir + ". ");
             if (dir != Direction.CENTER) {
                 if (rc.canMove(dir)) {
+                    statusString.append("2Well:" + wellLocation + ":" + dir + ". ");
                     rc.move(dir);
                 }
             }else {
@@ -1213,6 +1214,12 @@ public strictfp class RobotPlayer {
             }
         }
     }
+
+    /**
+     * launcher attack 2
+     * move forward then attack.
+     * useful for if you want to win a fight
+     */
 
     /**
      * Move in random direction

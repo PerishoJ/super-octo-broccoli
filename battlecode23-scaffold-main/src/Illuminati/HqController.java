@@ -24,6 +24,51 @@ public class HqController {
     RobotRadio robotRadio;
     static final Random rng = new Random(6257);
 
+    int lastADtotal = 0;
+    int lastMNtotal = 0;
+    double avgAD = 0;
+    double avgMN = 0;
+    int[] historicalAD = new int[5];
+    int[] historicalMN = new int[5];
+
+    public static int[] updateHistorical(int adIncome, int[] historicalAD) {
+        //shift everything throwing out oldest value.
+        historicalAD[4] = historicalAD[3];
+        historicalAD[3] = historicalAD[2];
+        historicalAD[2] = historicalAD[1];
+        historicalAD[1] = historicalAD[0];
+        historicalAD[0] = adIncome;
+        return historicalAD;
+    }
+
+    public static double calcAverage (int currentAD, int[] historicalAD, int turnCount) {
+        int totalAD = 0;
+        for(int i = 0; i < historicalAD.length; i++) {
+            totalAD += historicalAD[i];
+        }
+        double avg = 0;
+        switch (turnCount) {
+            case 0:
+                break;
+            case 1:
+                avg = currentAD;
+                break;
+            case 2:
+                avg = totalAD / 2.0;
+                break;
+            case 3:
+                avg = totalAD / 3.0;
+                break;
+            case 4:
+                avg = totalAD / 4.0;
+                break;
+            default:
+                avg = totalAD / 5.0;
+                break;
+        }
+        return avg;
+    }
+
     Set<MapLocation> HQLocations = new HashSet<>(8); //I'm guessing there's going to be less than 8 HQ's usually
     public HqController(SimpleMap map, SimpleMapRadio mapRadio, RobotRadio robotRadio) {
         this.map = map;
@@ -33,6 +78,22 @@ public class HqController {
 
     public void run (RobotController rc, int turnCount) throws GameActionException {
         String indicatorString = "";
+        int adNow = rc.getResourceAmount(ResourceType.ADAMANTIUM);
+        int adIncome = adNow - lastADtotal;
+        historicalAD = updateHistorical(adIncome, historicalAD);
+        avgAD = calcAverage(adNow, historicalAD, turnCount);
+        lastADtotal = adNow; //for next turn
+        indicatorString += "avgAD/MN:" + avgAD + "/";
+
+        int mnNow = rc.getResourceAmount(ResourceType.MANA);
+        int mnIncome = mnNow = lastMNtotal;
+        historicalMN = updateHistorical(mnIncome, historicalMN);
+        avgMN = calcAverage(mnNow, historicalMN, turnCount);
+        lastMNtotal = mnNow; //for next turn
+        indicatorString += avgMN + ", ";
+        //then spend ad/mn
+
+
         HqUtils.cleanSharedArray(rc, turnCount,robotRadio,mapRadio); // cleanup work is for utils classes ... nothing to do with commanding armies!
         List<SimpleMap.SimplePckg> mapDIff = mapRadio.readAndCacheEmpty();
         List<RobotRequest> requests = robotRadio.readScoutRequest();
