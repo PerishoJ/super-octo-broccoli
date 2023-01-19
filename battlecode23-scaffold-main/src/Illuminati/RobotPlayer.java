@@ -1216,26 +1216,39 @@ public strictfp class RobotPlayer {
 
     /**
      * Move in random direction
+     * hoping to cover more ground by moving away from the hq initially and keep walking in same direction for some time
+     * also try to avoid currents that might not help
      */
     static void randomWalk (RobotController rc, StringBuilder statusString) throws GameActionException {
         if (lastDir == null) {
             lastDir = rc.getLocation().directionTo(hqLocation).opposite();
         }
-        if (rc.canMove(lastDir) && rng.nextBoolean()) {
-            statusString.append("RandomWalk:" + lastDir + ". ");
+        if (rc.canMove(lastDir) && rng.nextBoolean() && rc.senseMapInfo(rc.getLocation().add(lastDir)).getCurrentDirection() != lastDir.opposite()) {
+            statusString.append("RayWalk:" + lastDir + ". ");
             rc.move(lastDir);
         }
         else { //random
             Direction dir = directions[rng.nextInt(directions.length)];
-            if (rc.canMove(dir)) {
+            if (rc.canMove(dir) && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite()) {
                 statusString.append("RandomWalk:" + dir + ". ");
                 rc.move(dir);
                 lastDir = dir;
             }
             else {
                 Direction dir2 = rc.getLocation().directionTo(hqLocation).opposite();
+                for (int dirs = 0; dirs < directions.length - 1; dirs++) {
+                    Direction WindDirection = rc.senseMapInfo(rc.getLocation().add(dir2)).getCurrentDirection();
+                    boolean windOK = WindDirection != dir2.opposite() ||
+                                     WindDirection != dir2.opposite().rotateRight() ||
+                                     WindDirection != dir2.opposite().rotateLeft();
+                   if (rc.canMove(dir2) && windOK) {
+                       break;
+                   } else {
+                       dir2 = dir2.rotateRight();
+                   }
+                }
                 if (rc.canMove(dir2)) {
-                    statusString.append("RandomWalk:" + dir2 + ". ");
+                    statusString.append("SWalk:" + dir2 + ". ");
                     rc.move(dir2);
                     lastDir = dir2;
                 }

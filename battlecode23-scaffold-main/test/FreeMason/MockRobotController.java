@@ -1,7 +1,6 @@
 package FreeMason;
 
 import battlecode.common.*;
-import sun.security.provider.SHA;
 
 public class MockRobotController implements RobotController
 {
@@ -162,6 +161,7 @@ public class MockRobotController implements RobotController
         return false;
     }
 
+    /*
     @Override
     public double senseCooldownMultiplier(MapLocation loc) throws GameActionException {
         return 0;
@@ -176,6 +176,7 @@ public class MockRobotController implements RobotController
     public int senseBoostTurns(MapLocation loc) throws GameActionException {
         return 0;
     }
+    */
 
     @Override
     public int senseIsland(MapLocation loc) throws GameActionException {
