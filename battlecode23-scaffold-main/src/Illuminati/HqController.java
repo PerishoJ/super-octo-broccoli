@@ -26,8 +26,8 @@ public class HqController {
 
     int lastADtotal = 0;
     int lastMNtotal = 0;
-    double avgAD = 0;
-    double avgMN = 0;
+    float avgAD = 0;
+    float avgMN = 0;
     int[] historicalAD = new int[5];
     int[] historicalMN = new int[5];
 
@@ -41,12 +41,12 @@ public class HqController {
         return historicalAD;
     }
 
-    public static double calcAverage (int currentAD, int[] historicalAD, int turnCount) {
+    public static float calcAverage (int currentAD, int[] historicalAD, int turnCount) {
         int totalAD = 0;
         for(int i = 0; i < historicalAD.length; i++) {
             totalAD += historicalAD[i];
         }
-        double avg = 0;
+        float avg = 0;
         switch (turnCount) {
             case 0:
                 break;
@@ -54,16 +54,16 @@ public class HqController {
                 avg = currentAD;
                 break;
             case 2:
-                avg = totalAD / 2.0;
+                avg = totalAD / 2.0f;
                 break;
             case 3:
-                avg = totalAD / 3.0;
+                avg = totalAD / 3.0f;
                 break;
             case 4:
-                avg = totalAD / 4.0;
+                avg = totalAD / 4.0f;
                 break;
             default:
-                avg = totalAD / 5.0;
+                avg = totalAD / 5.0f;
                 break;
         }
         return avg;
@@ -101,7 +101,7 @@ public class HqController {
         handleIncomingRequests(rc, requests);
         scanForNewMapFeatures(rc, mapDIff, requests);
         map.update(mapDIff);
-        buildOrder(rc, turnCount);
+        buildOrder(rc, turnCount, avgAD, avgMN);
 
         rc.setIndicatorString(indicatorString);
     }
@@ -146,7 +146,7 @@ public class HqController {
 
     }
 
-    private void buildOrder(RobotController rc, int turnCount) throws GameActionException {
+    private void buildOrder(RobotController rc, int turnCount, float avgAD, float avgMN) throws GameActionException {
         if(turnCount == 1){
             //broadcast wells
             ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);

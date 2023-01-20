@@ -759,7 +759,6 @@ public strictfp class RobotPlayer {
             //todo pick closest well, best well?
             //decide what well to go to based on wellNumber used last time. move on from crowded wells
             //if well location is full, try next weld location
-            //todo maybe we should be able to go backwards to not get stuck in maps
 
             //poor implementation
             int wellLoop = wellNumber;
@@ -1118,7 +1117,9 @@ public strictfp class RobotPlayer {
             Direction dir = rc.getLocation().directionTo(location);
             //find a direction we can actually move to
             for (int dirs = 0; dirs < directions.length - 1; dirs++) {
-                if (rc.canMove(dir) && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite()) {
+                if (rc.canMove(dir) && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite()
+                                    && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite().rotateRight()
+                                    && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite().rotateLeft()) {
                     break;
                 } else {
                     dir = dir.rotateRight();
