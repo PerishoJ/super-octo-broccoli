@@ -89,4 +89,53 @@ public class HqUtils {
         }
         return false;
     }
+
+    static void hqAttack(RobotController rc, StringBuilder statusString) throws GameActionException {
+        int attackIndex = 0;
+        int carrierIndex = 0;
+        int hqIndex = 0;
+        boolean seenHQ = false;
+        boolean seenEnemy = false;
+        boolean seenCarrier = false;
+        int radius = rc.getType().actionRadiusSquared;
+        Team opponent = rc.getTeam().opponent();
+        RobotInfo[] enemies = rc.senseNearbyRobots(radius, opponent);
+        if (enemies.length > 0) {
+            //search for enemy launcher
+            int index = 0;
+            for (RobotInfo enemy : enemies) {
+                RobotType enemyType = enemy.getType();
+                if (enemyType == RobotType.LAUNCHER || enemyType == RobotType.DESTABILIZER || enemyType == RobotType.BOOSTER) {
+                    attackIndex = index;
+                    seenEnemy = true;
+                    statusString.append("seeEnemy:" + attackIndex + " ");
+                    break;
+                } else if (enemyType == RobotType.CARRIER) {
+                    carrierIndex = index;
+                    seenCarrier = true;
+                    statusString.append("seeCarrier:" + carrierIndex + " ");
+                } else if (enemyType == RobotType.HEADQUARTERS) { //look at next enemy
+                    hqIndex = index;
+                    seenHQ = true;
+                    statusString.append("seeHQ:" + hqIndex + " ");
+                }
+                index++;
+            }
+            MapLocation toAttack = null;
+            //attack priority
+            if (seenEnemy) {
+                toAttack = enemies[attackIndex].location;
+            } else if (seenCarrier) {
+                toAttack = enemies[carrierIndex].location;
+            } else {
+                toAttack = enemies[0].location;
+                statusString.append("failover:" + toAttack + " ");
+            }
+            //MapLocation toAttack = rc.getLocation().add(Direction.EAST); //examplefuncsplayer original line
+            if (rc.canAttack(toAttack)) {
+                statusString.append("Attacking:" + toAttack + ". ");
+                rc.attack(toAttack);
+            }
+        }
+    }
 }

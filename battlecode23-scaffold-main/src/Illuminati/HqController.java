@@ -31,6 +31,8 @@ public class HqController {
     int[] historicalAD = new int[5];
     int[] historicalMN = new int[5];
 
+    boolean anchorRequested = false;
+
     public static int[] updateHistorical(int adIncome, int[] historicalAD) {
         //shift everything throwing out oldest value.
         historicalAD[4] = historicalAD[3];
@@ -82,14 +84,12 @@ public class HqController {
         int adIncome = adNow - lastADtotal;
         historicalAD = updateHistorical(adIncome, historicalAD);
         avgAD = calcAverage(adNow, historicalAD, turnCount);
-        lastADtotal = adNow; //for next turn
         indicatorString += "avgAD/MN:" + avgAD + "/";
 
         int mnNow = rc.getResourceAmount(ResourceType.MANA);
         int mnIncome = mnNow - lastMNtotal;
         historicalMN = updateHistorical(mnIncome, historicalMN);
         avgMN = calcAverage(mnNow, historicalMN, turnCount);
-        lastMNtotal = mnNow; //for next turn
         indicatorString += avgMN + ", ";
         //then spend ad/mn
 
@@ -104,6 +104,9 @@ public class HqController {
         buildOrder(rc, turnCount, avgAD, avgMN);
 
         rc.setIndicatorString(indicatorString);
+
+        lastADtotal = adNow; //for next turn
+        lastMNtotal = mnNow; //for next turn
     }
 
     private static void handleIncomingRequests(RobotController rc, List<RobotRequest> requests) throws GameActionException {
@@ -140,6 +143,7 @@ public class HqController {
                 break;
             case ISLD_NEUTRAL:
                 //make anchor
+                anchorRequested = true;
                 break;
         }
         //TODO handle every other map feature that can be sent (anything in the SimpleMap.)
@@ -152,6 +156,11 @@ public class HqController {
             ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);
             //You are an HQ...Broadcast your location. Other HQ's will pick it up.
             mapRadio.writeBlock(new SimpleMap.SimplePckg(MapFeature.OUR_HQ , rc.getLocation()));
+        }
+        if (anchorRequested) {
+            if (rc.getNumAnchors(Anchor.STANDARD) < 1){
+                HqUtils.buildAnchorSTD(rc);
+            }
         }
         //make some launchers
         if(rc.getResourceAmount(ResourceType.MANA) > 60 && turnCount < 10 || rc.getResourceAmount(ResourceType.MANA) > 200 && rng.nextBoolean()) {

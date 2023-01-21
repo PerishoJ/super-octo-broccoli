@@ -436,10 +436,11 @@ public strictfp class RobotPlayer {
     static void depositing (RobotController rc, StringBuilder statusString) throws GameActionException {
         int distanceToHq = rc.getLocation().distanceSquaredTo(hqLocation);
         //statusString.append("dist2hq:" + distanceToHq + ". ");
-        boolean hasOre = (rc.getResourceAmount(ResourceType.ADAMANTIUM) +
-                         rc.getResourceAmount(ResourceType.MANA) +
-                         rc.getResourceAmount(ResourceType.ELIXIR)  >= 1);
+
         if (distanceToHq <= 3) {
+            boolean hasOre = (rc.getResourceAmount(ResourceType.ADAMANTIUM) +
+                    rc.getResourceAmount(ResourceType.MANA) +
+                    rc.getResourceAmount(ResourceType.ELIXIR)  >= 1);
             if (hasOre) {
                 //deposit ore
                 if (rc.canTransferResource(hqLocation, ResourceType.MANA, rc.getResourceAmount(ResourceType.MANA))) {
@@ -487,7 +488,7 @@ public strictfp class RobotPlayer {
                 if(thisWellLocation != null) {
                     if (!knownWellLocations.contains(thisWellLocation)) {
                         statusString.append("saveWell" + well.getResourceType() + "(" + thisWellLocation + "). ");
-                        //System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
+                        System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
                         knownWellLocations.add(thisWellLocation);
                     }
                 }
@@ -522,7 +523,10 @@ public strictfp class RobotPlayer {
                 } else if (islandteam != rc.getTeam()) {
                     if (islandteam == Team.NEUTRAL) { //neutral
                         //add to knowIslandLocations
-                        knownIslandLocations.put(island.getKey(), closestLocations.get((island.getKey())));
+                        if (knownIslandLocations.put(island.getKey(), closestLocations.get((island.getKey()))) == null) {
+                            newislandLocation = closestLocations.get((island.getKey()));
+                            statusString.append("newIslandDetected. ");
+                        }
                     }
                 } else { //enemy
                     //MapLocation[] thisIslandLocs = rc.senseNearbyIslandLocations(island.getKey());
@@ -579,6 +583,13 @@ public strictfp class RobotPlayer {
                     rc.move(dir);
                 }
             }
+            if (distanceToHQ > 9 && rc.isMovementReady()) {
+                Direction dir = getDirectionToLocation(rc , hqLocation);
+                if (rc.canMove(dir)) {
+                    statusString.append("repMove. ");
+                    rc.move(dir);
+                }
+            }
             //*/
             if (distanceToHQ <= 9 ){
                 //todo transmit about island location
@@ -592,6 +603,7 @@ public strictfp class RobotPlayer {
                 mapRadio.writeBlock(pckg);
 
                 reportIslandLocation = null;
+                newislandLocation = null;
             }
         }
     }
@@ -754,8 +766,8 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     static void wellWalk(RobotController rc, StringBuilder statusString) throws GameActionException {
-        if (!knownWellLocations.isEmpty()) {
-            statusString.append("knowWell. ");
+        if (!knownWellLocations.isEmpty() && reportIslandLocation == null) {
+            //reportIslandLocation
             //todo pick closest well, best well?
             //decide what well to go to based on wellNumber used last time. move on from crowded wells
             //if well location is full, try next weld location
@@ -782,6 +794,8 @@ public strictfp class RobotPlayer {
                 }
                 wellLoop = wellLoop - 1;
             }
+
+            statusString.append("well:" + wellLocation + ". ");
             Direction dir = getDirectionToLocation(rc, wellLocation);
 
             if (dir != Direction.CENTER) {
@@ -1245,15 +1259,20 @@ public strictfp class RobotPlayer {
             else {
                 Direction dir2 = rc.getLocation().directionTo(hqLocation).opposite();
                 for (int dirs = 0; dirs < directions.length - 1; dirs++) {
-                    Direction WindDirection = rc.senseMapInfo(rc.getLocation().add(dir2)).getCurrentDirection();
-                    boolean windOK = WindDirection != dir2.opposite() ||
-                                     WindDirection != dir2.opposite().rotateRight() ||
-                                     WindDirection != dir2.opposite().rotateLeft();
-                   if (rc.canMove(dir2) && windOK) {
-                       break;
-                   } else {
-                       dir2 = dir2.rotateRight();
-                   }
+                    if (rc.onTheMap(rc.getLocation().add(dir2))) {
+
+                        Direction WindDirection = rc.senseMapInfo(rc.getLocation().add(dir2)).getCurrentDirection();
+                        boolean windOK = WindDirection != dir2.opposite() ||
+                                WindDirection != dir2.opposite().rotateRight() ||
+                                WindDirection != dir2.opposite().rotateLeft();
+                        if (rc.canMove(dir2) && windOK) {
+                            break;
+                        } else {
+                            dir2 = dir2.rotateRight();
+                        }
+                    }else {
+                        dir2 = dir2.rotateRight();
+                    }
                 }
                 if (rc.canMove(dir2)) {
                     statusString.append("SWalk:" + dir2 + ". ");
@@ -1313,14 +1332,19 @@ public strictfp class RobotPlayer {
 
         rc.setIndicatorString(statusString + " ...wtf in moveRandomly ");
 
-        moveRandomly(rc, statusString);
+        if (turnCount < 1000){
+            moveCenter(rc, statusString);
+        }
+        else {
+            moveRandomly(rc, statusString);
+        }
 
         rc.setIndicatorString(statusString.toString());
     }
 
     public static void moveRandomly(RobotController rc, StringBuilder indicatorString) throws GameActionException {
 
-        boolean shouldFindNewRndTarget = ((target == null) || (target.distanceSquaredTo(rc.getLocation()) < 2));
+        boolean shouldFindNewRndTarget = ((target == null) || (target.distanceSquaredTo(rc.getLocation()) < 9));
         if(shouldFindNewRndTarget) {
             target = new MapLocation(Math.abs(rng.nextInt() % (rc.getMapWidth() - 1)), Math.abs(rng.nextInt() % (rc.getMapHeight() - 1)));
         }
@@ -1329,4 +1353,14 @@ public strictfp class RobotPlayer {
         indicatorString.append("moving to "+target+ " ");
     }
 
+    public static void moveCenter(RobotController rc, StringBuilder indicatorString) throws GameActionException {
+
+        boolean shouldFindNewRndTarget = ((target == null) || (target.distanceSquaredTo(rc.getLocation()) < 9));
+        if(shouldFindNewRndTarget) {
+            target = new MapLocation((Math.abs(rc.getMapWidth() / 2) + (rng.nextInt() % (rc.getMapWidth() - 1)) / 4 ), (rc.getMapHeight() / 2) +  (Math.abs(rng.nextInt() % (rc.getMapHeight() - 1)) / 4) );
+        }
+        CarrierUtils.moveTowardsTarget(rc , target, indicatorString);
+        rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
+        indicatorString.append("moving to center: "+target+ " ");
+    }
 }
