@@ -80,6 +80,7 @@ public class HqController {
 
     public void run (RobotController rc, int turnCount) throws GameActionException {
         String indicatorString = "";
+        StringBuilder istring = new StringBuilder();
         int adNow = rc.getResourceAmount(ResourceType.ADAMANTIUM);
         int adIncome = adNow - lastADtotal;
         historicalAD = updateHistorical(adIncome, historicalAD);
@@ -101,9 +102,9 @@ public class HqController {
         handleIncomingRequests(rc, requests);
         scanForNewMapFeatures(rc, mapDIff, requests);
         map.update(mapDIff);
-        buildOrder(rc, turnCount, avgAD, avgMN);
+        buildOrder(rc, turnCount, avgAD, avgMN, istring);
 
-        rc.setIndicatorString(indicatorString);
+        rc.setIndicatorString(indicatorString + istring.toString());
 
         lastADtotal = adNow; //for next turn
         lastMNtotal = mnNow; //for next turn
@@ -150,7 +151,7 @@ public class HqController {
 
     }
 
-    private void buildOrder(RobotController rc, int turnCount, float avgAD, float avgMN) throws GameActionException {
+    private void buildOrder(RobotController rc, int turnCount, float avgAD, float avgMN, StringBuilder statusIndicator) throws GameActionException {
         if(turnCount == 1){
             //broadcast wells
             ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);
@@ -158,8 +159,10 @@ public class HqController {
             mapRadio.writeBlock(new SimpleMap.SimplePckg(MapFeature.OUR_HQ , rc.getLocation()));
         }
         if (anchorRequested) {
-            if (rc.getNumAnchors(Anchor.STANDARD) < 1){
+            if (rc.getNumAnchors(Anchor.STANDARD) < 1 && rc.getResourceAmount(ResourceType.MANA) > 100 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 100){
                 HqUtils.buildAnchorSTD(rc);
+                statusIndicator.append("Building Requested STD Anchor");
+                anchorRequested = false;
             }
         }
         //make some launchers
