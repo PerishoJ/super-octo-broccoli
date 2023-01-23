@@ -35,6 +35,9 @@ public strictfp class RobotPlayer {
     static int wellNumber = 0;
     static Set<MapLocation> knownWellLocations = new LinkedHashSet<MapLocation>();
 
+    static int[] enemyHQLocationGuesses = new int[5];
+    static MapLocation enemyHQguess = null;
+
     //remember island location
     static MapLocation reportIslandLocation = null;
     static MapLocation newislandLocation = null;
@@ -421,7 +424,7 @@ public strictfp class RobotPlayer {
         //carrierAttack(rc, statusString);
         statusString.append("NoOp");
         rc.setIndicatorString(statusString.toString());
-        if( rc.getAnchor() != null) {
+        if( rc.getAnchor() == Anchor.STANDARD) {
             //System.out.println(statusString.toString());
         }
     }//end runCarrier2
@@ -488,7 +491,7 @@ public strictfp class RobotPlayer {
                 if(thisWellLocation != null) {
                     if (!knownWellLocations.contains(thisWellLocation)) {
                         statusString.append("saveWell" + well.getResourceType() + "(" + thisWellLocation + "). ");
-                        System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
+                        //System.out.println("savewell: " + well.getResourceType() + " at:(" + thisWellLocation + ")");
                         knownWellLocations.add(thisWellLocation);
                     }
                 }
@@ -1326,18 +1329,29 @@ public strictfp class RobotPlayer {
      */
     static void runLauncher(RobotController rc) throws GameActionException {
         StringBuilder statusString = new StringBuilder();
+        if( turnCount == 1) {
+            hqLocation = findHq(rc);
+            statusString.append("FoundHQ. ");
+            enemyHQLocationGuesses = findEnemyHQ(rc, statusString);
+            enemyHQguess = guessEnemyLocation(rc, enemyHQLocationGuesses, statusString);
+        }
         // Try to attack someone and chase them
         rc.setIndicatorString(statusString + " ...wtf launcherAttack ");
         launcherAttack(rc, statusString);
 
         rc.setIndicatorString(statusString + " ...wtf in moveRandomly ");
 
-        if (turnCount < 1000){
-            moveCenter(rc, statusString);
+
+        CarrierUtils.moveTowardsTarget(rc, enemyHQguess, statusString);
+        /*
+        if (turnCount < 60){
+            CarrierUtils.moveTowardsTarget(rc, guessEnemyLocation(rc, enemyHQLocationGuesses, statusString), statusString);
         }
         else {
-            moveRandomly(rc, statusString);
+            moveCenter(rc, statusString);
+            //moveRandomly(rc, statusString);
         }
+        */
 
         rc.setIndicatorString(statusString.toString());
     }
@@ -1355,12 +1369,50 @@ public strictfp class RobotPlayer {
 
     public static void moveCenter(RobotController rc, StringBuilder indicatorString) throws GameActionException {
 
-        boolean shouldFindNewRndTarget = ((target == null) || (target.distanceSquaredTo(rc.getLocation()) < 9));
+        boolean shouldFindNewRndTarget = ((target == null) || (target.distanceSquaredTo(rc.getLocation()) < 2) || (turnCount % 40 == 0));
         if(shouldFindNewRndTarget) {
-            target = new MapLocation((Math.abs(rc.getMapWidth() / 2) + (rng.nextInt() % (rc.getMapWidth() - 1)) / 4 ), (rc.getMapHeight() / 2) +  (Math.abs(rng.nextInt() % (rc.getMapHeight() - 1)) / 4) );
+            target = new MapLocation((Math.abs(rc.getMapWidth() / 2) + (rng.nextInt() % (rc.getMapWidth() - 1)) / 3 ), (rc.getMapHeight() / 2) +  (Math.abs(rng.nextInt() % (rc.getMapHeight() - 1)) / 4) );
         }
         CarrierUtils.moveTowardsTarget(rc , target, indicatorString);
         rc.setIndicatorLine(rc.getLocation() , target , 0,250,0); // Maybe it'll work...lets see
         indicatorString.append("moving to center: "+target+ " ");
     }
+
+    public static int[] findEnemyHQ(RobotController rc, StringBuilder indicatorString) throws GameActionException {
+        //find reflections/rotations of current position.
+        int maxX = rc.getMapWidth();
+        int maxY = rc.getMapHeight();
+
+        float xPercent =  hqLocation.x / (maxX - 1.0f);
+        float yPercent = hqLocation.y / (maxY - 1.0f);
+
+        indicatorString.append(" x%:[" + String.format("%.02f", xPercent) + ", " + String.format("%.02f", yPercent) + "] ");
+
+        //vertical mirror
+        int vfX = (int) Math.round( (1.0f - xPercent) * maxX );
+        int vfY = hqLocation.y;
+
+        indicatorString.append(" vf:[ " + vfX + ", " + vfY + " ] ");
+
+        //horizontal miror
+        int hfX = hqLocation.x;
+        int hfY = (int) Math.round( (1.0f - yPercent) * maxY );
+        indicatorString.append(" hf:[ " + hfX + ", " + hfY + " ] ");
+
+        //r1
+        int r1X = (int) Math.round( (1.0f - xPercent) * maxX );
+        int r1Y = (int) Math.round( (1.0f - yPercent) * maxY );
+        indicatorString.append(" r1:[ " + r1X + ", " + r1Y + " ] ");
+
+        //////////////  0,   1,   2,   3,   4,   5
+        int[] arr = { vfX, vfY, hfX, hfY, r1X, r1Y };
+        return arr;
+    }
+
+    public static MapLocation guessEnemyLocation(RobotController rc, int[] enemyHQ,  StringBuilder indicatorString) throws GameActionException {
+        int index = rng.nextInt(2);
+        MapLocation chosenHQ = new MapLocation(enemyHQ[index * 2], enemyHQ[(index * 2) + 1]);
+        return chosenHQ;
+    }
+
 }

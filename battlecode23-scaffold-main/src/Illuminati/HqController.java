@@ -102,7 +102,7 @@ public class HqController {
         handleIncomingRequests(rc, requests);
         scanForNewMapFeatures(rc, mapDIff, requests);
         map.update(mapDIff);
-        buildOrder(rc, turnCount, avgAD, avgMN, istring);
+        buildOrder2(rc, turnCount, avgAD, avgMN, istring);
 
         rc.setIndicatorString(indicatorString + istring.toString());
 
@@ -212,6 +212,42 @@ public class HqController {
         }
 
     }
+
+    private void buildOrder2(RobotController rc, int turnCount, float avgAD, float avgMN, StringBuilder statusIndicator) throws GameActionException {
+        if(turnCount == 1){
+            //broadcast wells
+            ScoutingUtils.senseForWellsAndBroadcast(rc,map,mapRadio);
+            //You are an HQ...Broadcast your location. Other HQ's will pick it up.
+            mapRadio.writeBlock(new SimpleMap.SimplePckg(MapFeature.OUR_HQ , rc.getLocation()));
+            HqUtils.buildWherever(rc, RobotType.CARRIER);
+        }
+        if (anchorRequested) {
+            if (rc.getNumAnchors(Anchor.STANDARD) < 1 && rc.getResourceAmount(ResourceType.MANA) > 100 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 100){
+                HqUtils.buildAnchorSTD(rc);
+                statusIndicator.append("Building Requested STD Anchor");
+                anchorRequested = false;
+            }
+        }
+        // we need scouts ...
+        if(rc.getResourceAmount(ResourceType.MANA) > 40 && rc.getResourceAmount(ResourceType.ADAMANTIUM) > 40 && (turnCount % 25 == 0)){
+            HqUtils.buildWherever(rc, RobotType.AMPLIFIER);
+            int explorationPattern = AmplifierController.ExplorationPattern.TOTAL_RANDOM.ordinal();
+            int[] metadata = {AMPLIFIER, explorationPattern ,0};
+            robotRadio.sendRequest( new MapLocation(0,0) , 1, metadata);
+        }
+        //make some miners
+        if(rc.getResourceAmount(ResourceType.ADAMANTIUM) > 40 && avgMN == 1.2f) {
+            HqUtils.buildWherever(rc, RobotType.CARRIER);
+        }
+        //make some launchers
+        if(rc.getResourceAmount(ResourceType.MANA) > 60 && avgMN > 15.0f) {
+            HqUtils.buildWherever(rc, RobotType.LAUNCHER);
+        }
+
+
+
+    }
+
 
     private void scanForNewMapFeatures(RobotController rc, List<SimpleMap.SimplePckg> mapDIff, List<RobotRequest> requests) throws GameActionException {
         //Handle any new Map features coming in off the line
